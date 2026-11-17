@@ -125,10 +125,32 @@ export function createMeterPassFetch(opts: MeterPassFetchOptions) {
   const ctx: VoucherContext = { chainId: opts.chainId, vault: opts.policy.vault };
   let queue: Promise<unknown> = Promise.resolve(); // vouchers are sequential per pass
 
+  // Prices already seen per endpoint: later calls pay on the FIRST request (one round trip).
+  const known = new Map<string, { requirement: BatchSettlementRequirements; resource: PaymentRequired["resource"] }>();
+  const keyOf = (url: string) => {
+    const u = new URL(url);
+    return `${u.origin}${u.pathname}`;
+  };
+  const enqueue = (fn: () => Promise<Response>) => {
+    const result = queue.then(fn, fn);
+    queue = result.catch(() => undefined);
+    return result;
+  };
+
   return async function meterPassFetch(input: string | URL, init?: RequestInit): Promise<Response> {
     const url = typeof input === "string" ? input : input.toString();
-    const first = await doFetch(url, withHeaders(init, { "X-MeterPass-Pass": opts.passId.toString() }));
-    if (first.status !== 402) return first;
+    const key = keyOf(url);
+    let first: Response;
+    const cached = known.get(key);
+    if (cached) {
+      const paid = await enqueue(() => payOnce(url, init, cached.requirement, cached.resource, true));
+      if (paid.status !== 402) return paid;
+      known.delete(key); // price or pass state changed: take the fresh quote below
+      first = paid;
+    } else {
+      first = await doFetch(url, withHeaders(init, { "X-MeterPass-Pass": opts.passId.toString() }));
+      if (first.status !== 402) return first;
+    }
 
     const header = first.headers.get(X402_HEADERS.required);
     const paymentRequired: PaymentRequired = header ? decodeHeader(header) : await first.clone().json();
@@ -140,8 +162,19 @@ export function createMeterPassFetch(opts: MeterPassFetchOptions) {
       throw e;
     }
     opts.onEvent?.({ type: "quote", url, requirements: requirement });
+    const paid = await enqueue(() => payOnce(url, init, requirement, paymentRequired.resource, false));
+    if (paid.ok) known.set(key, { requirement, resource: paymentRequired.resource });
+    return paid;
+  };
 
-    const run = async () => {
+  async function payOnce(
+    url: string,
+    init: RequestInit | undefined,
+    requirement: BatchSettlementRequirements,
+    resource: PaymentRequired["resource"],
+    optimistic: boolean,
+  ): Promise<Response> {
+    {
       const started = performance.now();
       const last = await ledger.get(opts.passId);
       const next = last + BigInt(requirement.amount);
@@ -155,17 +188,20 @@ export function createMeterPassFetch(opts: MeterPassFetchOptions) {
 
       const payload: PaymentPayload = {
         x402Version: X402_VERSION,
-        resource: paymentRequired.resource,
+        resource,
         accepted: requirement,
         payload: { passId: opts.passId.toString(), cumulativeAmount: next.toString(), signature },
       };
-      const paid = await doFetch(url, withHeaders(init, { [X402_HEADERS.signature]: encodeHeader(payload) }));
+      const paid = await doFetch(
+        url,
+        withHeaders(init, { [X402_HEADERS.signature]: encodeHeader(payload), "X-MeterPass-Pass": opts.passId.toString() }),
+      );
       const respHeader = paid.headers.get(X402_HEADERS.response);
       const response = respHeader ? decodeHeader<SettlementResponse>(respHeader) : undefined;
       if (paid.ok && response?.success !== false) {
         await ledger.set(opts.passId, next, signature);
         opts.onEvent?.({ type: "paid", url, passId: opts.passId, cumulative: next, response });
-      } else {
+      } else if (!optimistic || paid.status !== 402) {
         let reason: string | undefined = response?.errorReason;
         if (!reason && paid.status === 402) {
           const h = paid.headers.get(X402_HEADERS.required);
@@ -174,11 +210,8 @@ export function createMeterPassFetch(opts: MeterPassFetchOptions) {
         opts.onEvent?.({ type: "rejected", url, status: paid.status, reason });
       }
       return paid;
-    };
-    const result = queue.then(run, run);
-    queue = result.catch(() => undefined);
-    return result;
-  };
+    }
+  }
 }
 
 /**

@@ -38,3 +38,5 @@ Thumbs.db
 # local-chain deployment outputs
 deployments/31337.json
 deployments/440050.json
+deployments/evidence-440050.json
+deployments/evidence-31337.json

@@ -1,0 +1,11 @@
+{
+  "name": "@meterpass/node",
+  "private": true,
+  "version": "0.1.0",
+  "license": "MIT",
+  "type": "module",
+  "exports": { ".": "./src/env.ts" },
+  "scripts": { "typecheck": "tsc --noEmit" },
+  "dependencies": { "@meterpass/sdk": "workspace:*", "viem": "^2.58.0" },
+  "devDependencies": { "@types/node": "^22.0.0", "typescript": "^5.9.0" }
+}
