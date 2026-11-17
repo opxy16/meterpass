@@ -1,0 +1,38 @@
+{
+  "name": "@meterpass/sdk",
+  "version": "0.1.0",
+  "description": "MeterPass SDK: x402 batch settlement with cumulative EIP-712 vouchers, a scoped Kernel session key and ERC-8004 identity on QDay Aevum.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "files": ["dist", "src"],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test test/*.test.ts"
+  },
+  "peerDependencies": {
+    "viem": "^2.30.0"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "viem": "^2.58.0",
+    "@types/node": "^22.0.0"
+  }
+}

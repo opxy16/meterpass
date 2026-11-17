@@ -1,0 +1,22 @@
+{
+  "DEPLOYER": {
+    "address": "0x0E32f15cde8C056a964028135373344248571bFb",
+    "purpose": "deploys contracts, registers the demo merchant identity"
+  },
+  "OWNER": {
+    "address": "0xaE700a28E012Ef887C8578FF9A816B2745a57A14",
+    "purpose": "human owner: root key of the smart account, owns the pass NFTs, revokes and refunds"
+  },
+  "MERCHANT": {
+    "address": "0x3F281fFabcc88146bD4604890E1f2AF99d4C85ca",
+    "purpose": "API seller: receives tUSD8, submits batch claims"
+  },
+  "AGENT_A": {
+    "address": "0x10F33180162e6b49C48A6907bB47B8Da0347AA85",
+    "purpose": "agent A session key: opens passes inside the policy, signs vouchers"
+  },
+  "AGENT_B": {
+    "address": "0x65e3019d5f5A561537eDd0F944aFBdFEf82660f3",
+    "purpose": "agent B session key: takes over a pass after reassignment"
+  }
+}

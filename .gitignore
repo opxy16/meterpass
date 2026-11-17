@@ -1,0 +1,40 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# secrets: never commit keys
+.env
+.env.*
+!.env.example
+!**/.env.example
+*.key
+wallets/
+
+# foundry
+contracts/out/
+contracts/cache/
+contracts/broadcast/*/31337/
+contracts/broadcast/*/440050/
+contracts/broadcast/**/dry-run/
+
+# builds
+.next/
+dist/
+.vercel/
+.turbo/
+*.tsbuildinfo
+
+# runtime state
+apps/merchant/data/
+apps/agent/data/
+*.log
+
+# os / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# local-chain deployment outputs
+deployments/31337.json
+deployments/440050.json

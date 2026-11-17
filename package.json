@@ -1,0 +1,22 @@
+{
+  "name": "meterpass",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Pay per request without a transaction per request: x402 batch settlement with cumulative vouchers on QDay Aevum testnet.",
+  "license": "MIT",
+  "type": "module",
+  "packageManager": "pnpm@10.18.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "wallets": "node scripts/gen-wallets.mjs",
+    "check-secrets": "node scripts/check-secrets.mjs",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test"
+  },
+  "devDependencies": {
+    "viem": "^2.58.0"
+  }
+}
