@@ -98,49 +98,44 @@ is a single HTTP round trip.
 
 ```mermaid
 flowchart LR
-    subgraph Owner["Owner (human)"]
-        O[Wallet]
-    end
-    subgraph Account["Kernel v3.1 smart account"]
-        K[Account] --- SV[MeterPassSessionValidator<br/>budget · merchants · validUntil]
-    end
-    subgraph Agent["AI agent"]
-        AG[Session key<br/>signs user ops + vouchers]
-    end
-    subgraph Aevum["QDay Aevum testnet"]
-        EP[EntryPoint v0.7] --> K
-        PV[PassVault<br/>ERC-721 passes · tUSD8 escrow]
-        ID[ERC-8004 Identity]
-        RP[ERC-8004 Reputation]
-        T[(tUSD8)]
-    end
-    B[bundler.qday.info]
-    M[Merchant API<br/>x402 batch-settlement]
+    O["Owner wallet"]
+    K["Kernel v3.1 smart account"]
+    SV["MeterPassSessionValidator<br/>budget, merchants, validUntil"]
+    AG["AI agent<br/>session key"]
+    B["bundler.qday.info"]
+    EP["EntryPoint v0.7"]
+    PV["PassVault<br/>ERC-721 passes, tUSD8 escrow"]
+    ID["ERC-8004 Identity"]
+    RP["ERC-8004 Reputation"]
+    T[("tUSD8")]
+    M["Merchant API<br/>x402 batch-settlement"]
 
-    O -->|"1 tx: create account,<br/>install session key, approve budget"| K
-    AG -->|"user op: open / topUp pass"| B
+    O -->|"one tx: account, session key, budget"| K
+    K --- SV
+    AG -->|"user op: open or topUp"| B
     B --> EP
-    K -->|"open(owner, merchantId, …)"| PV
-    PV -->|"merchant wallet lookup"| ID
-    AG -->|"HTTP + voucher"| M
+    EP --> K
+    K -->|"open pass"| PV
+    PV -->|"merchant wallet"| ID
+    AG -->|"HTTP request + voucher"| M
     M -->|"claimBatch"| PV
     PV <--> T
-    O -->|"revoke · reassign · refund"| PV
-    AG -.->|"feedback tied to a pass"| RP
+    O -->|"revoke, reassign, refund"| PV
+    AG -.->|"feedback for a pass"| RP
 ```
 
 ### A pass's life
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Active: open / openWithAuthorization
-    Active --> Active: vouchers (off-chain) · claim / claimBatch · topUp
-    Active --> Paused: owner revoke()
-    Paused --> Active: owner setAuthorizer(agent B)
-    Active --> Closing: expiry passes, or owner requestClose()
-    Paused --> Closing: expiry passes, or owner requestClose()
-    Closing --> Closing: merchant settles during the settlement window
-    Closing --> Closed: owner refund() after the window
+    [*] --> Active : open
+    Active --> Active : vouchers and claims
+    Active --> Paused : owner revokes agent
+    Paused --> Active : owner sets agent B
+    Active --> Closing : expiry or close request
+    Paused --> Closing : expiry or close request
+    Closing --> Closing : merchant settles in the window
+    Closing --> Closed : owner refunds after the window
     Closed --> [*]
 ```
 
