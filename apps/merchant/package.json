@@ -5,7 +5,8 @@
   "license": "MIT",
   "type": "module",
   "exports": {
-    ".": "./src/app.ts"
+    ".": "./src/app.ts",
+    "./hub": "./src/hub.ts"
   },
   "scripts": {
     "dev": "tsx watch src/server.ts",

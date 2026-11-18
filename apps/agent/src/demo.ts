@@ -29,11 +29,13 @@ import {
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import {
+  AEVUM,
   PaymentRefusedError,
   createMeterPassFetch,
   explorerTx,
   formatTusd8,
   getKernelAddress,
+  createAccountCall,
   importHandoff,
   kernelInitData,
   passVaultAbi,
@@ -59,9 +61,10 @@ const flag = (name: string, dflt?: string) => {
 const net = network();
 const client = publicClient() as PublicClient;
 const chainId = await client.getChainId();
-const dep = deployment(chainId);
-if (!dep.merchantAgentId) throw new Error("merchant not registered yet");
-const merchantAgentId = BigInt(dep.merchantAgentId);
+// `fund` runs before anything is deployed; every other command needs the deployment + merchant.
+const dep = cmd === "fund" ? ({ token: AEVUM.tUSD8, merchantAgentId: 0 } as unknown as ReturnType<typeof deployment>) : deployment(chainId);
+if (cmd !== "fund" && !dep.merchantAgentId) throw new Error("merchant not registered yet: pnpm --filter @meterpass/merchant register");
+const merchantAgentId = BigInt(dep.merchantAgentId ?? 0);
 const st = new StateFile(chainId);
 const S = st.state;
 
@@ -140,10 +143,43 @@ const mainPass = () => {
 // ------------------------------------------------------------------------------------------------
 
 const commands: Record<string, () => Promise<void>> = {
+  /** Spread ONE faucet claim (1 tQDAY + 5 tUSD8 on DEPLOYER) across the demo's own test wallets. */
+  async fund() {
+    const deployer = privateKeyToAccount(requireEnv("DEPLOYER_PRIVATE_KEY") as Hex);
+    const dWallet = createWalletClient({ account: deployer, chain: net.chain, transport: http(net.rpc) });
+    const merchantAddr = privateKeyToAccount(requireEnv("MERCHANT_PRIVATE_KEY") as Hex).address;
+    const plan: { to: Address; tqday: string; tusd8: string; who: string }[] = [
+      { to: owner.address, tqday: flag("owner-gas", "0.35")!, tusd8: flag("owner-usd", "4.5")!, who: "OWNER" },
+      { to: merchantAddr, tqday: flag("merchant-gas", "0.25")!, tusd8: "0", who: "MERCHANT" },
+    ];
+    for (const p of plan) {
+      const native = await client.getBalance({ address: p.to });
+      const wantNative = parseEther(p.tqday);
+      if (native < wantNative) {
+        const hash = await dWallet.sendTransaction({ to: p.to, value: wantNative - native, type: "legacy" });
+        await client.waitForTransactionReceipt({ hash });
+        log(`  ✓ ${p.tqday} tQDAY -> ${p.who} ${tx(hash)}`);
+      }
+      const want = toUnits(p.tusd8);
+      if (want > 0n) {
+        const bal = await client.readContract({ address: dep.token, abi: erc20Abi, functionName: "balanceOf", args: [p.to] });
+        if (bal < want) {
+          const hash = await dWallet.writeContract({ address: dep.token, abi: erc20Abi, functionName: "transfer", args: [p.to, want - bal], type: "legacy" });
+          await client.waitForTransactionReceipt({ hash });
+          log(`  ✓ ${usd(want - bal)} -> ${p.who} ${tx(hash)}`);
+        }
+      }
+    }
+  },
+
   async setup() {
     const budget = toUnits(flag("budget", "1.2")!);
-    const validUntil = Math.floor(Date.now() / 1000) + 7 * 24 * 3600;
-    S.salt = keccak256(toHex(`meterpass-demo:${owner.address}:${flag("salt", "1")}`));
+    // Reuse the saved account: the address depends on every policy field, so rebuilding it would
+    // point at a NEW counterfactual account. Pass --new to deliberately create another one.
+    const reuse = !!(S.initData && S.account && S.validUntil && !args.includes("--new"));
+    const validUntil = reuse ? S.validUntil! : Math.floor(Date.now() / 1000) + 7 * 24 * 3600;
+    if (!reuse) S.salt = keccak256(toHex(`meterpass-demo:${owner.address}:${flag("salt", String(Date.now()))}`));
+    S.validUntil = validUntil;
     S.initData = kernelInitData({
       owner: owner.address,
       session: {
@@ -155,6 +191,8 @@ const commands: Record<string, () => Promise<void>> = {
         validUntil,
         merchantAgentIds: [merchantAgentId],
       },
+      // runs as the account inside the same deployment transaction
+      initCalls: [{ to: dep.token, data: encodeFunctionData({ abi: erc20Abi, functionName: "approve", args: [dep.passVault, budget] }) }],
     });
     S.account = await getKernelAddress(client, S.initData, S.salt);
     st.save();
@@ -172,13 +210,36 @@ const commands: Record<string, () => Promise<void>> = {
     if (native < gasFloat / 2n) await ownerTx("owner funds smart account with tQDAY for gas", { to: S.account, value: gasFloat - native });
 
     if (await client.getCode({ address: S.account })) {
-      log("  account already deployed; skipping setup user operation");
+      log("  account already deployed; skipping");
       return;
     }
-    log("Owner signs ONE user operation: deploy account + install session module + approve PassVault for the budget");
-    await userOp("setup: deploy Kernel account, install session key, approve budget (1 owner signature)", "root", [
-      { to: dep.token, data: encodeFunctionData({ abi: erc20Abi, functionName: "approve", args: [dep.passVault, budget] }) },
-    ]);
+    log("Owner sends ONE transaction: create the account, install the agent's session key, approve PassVault for the budget");
+    const create = createAccountCall(S.initData, S.salt);
+    await ownerTx("owner: one tx creates smart account + session policy + budget approval", { to: create.to, data: create.data, value: 0n } as never);
+    const allowance = await client.readContract({ address: dep.token, abi: erc20Abi, functionName: "allowance", args: [S.account, dep.passVault] });
+    const active = await client.readContract({ address: dep.sessionValidator, abi: sessionValidatorAbi, functionName: "isInitialized", args: [S.account] });
+    log(`  session module installed: ${active}, PassVault allowance: ${usd(allowance)}`);
+  },
+
+  /** Move funds out of smart accounts created by mistake (data/stray-account-*.json) back to the owner. */
+  async "recover-strays"() {
+    const { readdirSync, readFileSync, renameSync } = await import("node:fs");
+    const dir = join(repoRoot, "apps", "agent", "data");
+    for (const f of readdirSync(dir).filter((x) => x.startsWith(`stray-account-${chainId}`) && x.endsWith(".json") && !x.includes("recovered"))) {
+      const s = JSON.parse(readFileSync(join(dir, f), "utf8")) as { account: Address; initData: Hex; salt: Hex };
+      log(`stray account ${s.account}`);
+      if (!(await client.getCode({ address: s.account }))) {
+        const c = createAccountCall(s.initData, s.salt);
+        await ownerTx("owner deploys stray account to recover its funds", { to: c.to, data: c.data, value: 0n } as never);
+      }
+      const bal = await client.readContract({ address: dep.token, abi: erc20Abi, functionName: "balanceOf", args: [s.account] });
+      const account = await toMeterPassKernelAccount({ client: client as never, signer: owner, initData: s.initData, salt: s.salt, mode: "root" });
+      if (bal > 0n) {
+        const r = await sendViaBundler({ publicClient: client, account, calls: [{ to: dep.token, data: encodeFunctionData({ abi: erc20Abi, functionName: "transfer", args: [owner.address, bal] }) }] });
+        log(`  ✓ returned ${usd(bal)} to owner (root key, via ${r.via}) ${tx(r.transactionHash)}`);
+      }
+      renameSync(join(dir, f), join(dir, f.replace(".json", ".recovered.json")));
+    }
   },
 
   async open() {
@@ -207,7 +268,9 @@ const commands: Record<string, () => Promise<void>> = {
     const revokeAfter = flag("revoke-after") ? Number(flag("revoke-after")) : undefined;
     let paid = 0;
     let failed = 0;
-    let revokedAt: number | undefined;
+    const intervalMs = Number(flag("interval-ms", "0"));
+    let revokedAt: number | undefined; // wall-clock ms of the block that included the revoke
+    let paidAfterRevoke = 0;
     let revokeTx: Promise<unknown> | undefined;
     const signMs: number[] = [];
     const pay = payFetch(agent, passId, (e) => {
@@ -217,20 +280,30 @@ const commands: Record<string, () => Promise<void>> = {
     log(`Agent ${agent} calls ${merchantUrl}${path} ${calls} times on pass #${passId} (price ${usd(PRICE)} each)`);
     // With --revoke-after, keep calling past --calls until the merchant refuses (that is the point).
     for (let i = 1; i <= calls || (revokeAfter !== undefined && i <= calls + 2000); i++) {
+      if (intervalMs) await new Promise((r) => setTimeout(r, intervalMs));
       const res = await pay(`${merchantUrl}${path}`);
       if (res.ok) {
         paid++;
+        if (revokedAt && Date.now() > revokedAt) paidAfterRevoke++;
         if (paid % 25 === 0) log(`  ${paid} paid  (cumulative ${usd(await st.ledger(agent).get(passId))})`);
       } else {
         failed++;
         const body = (await res.json().catch(() => ({}))) as { error?: string };
-        log(`  ✗ call ${i}: HTTP ${res.status} ${body.error ?? ""}${revokedAt ? `  (${((performance.now() - revokedAt) / 1000).toFixed(1)}s after the revoke tx was mined)` : ""}`);
+        let timing = "";
+        if (revokeAfter) {
+          await revokeTx;
+          const after = revokedAt ? (Date.now() - revokedAt) / 1000 : undefined;
+          timing = after !== undefined ? `  (${after.toFixed(1)}s after the block containing the revoke; ${paidAfterRevoke} call(s) accepted in between)` : "";
+          if (body.error === "pass_revoked") st.metric("revokeLatency", { secondsAfterBlock: after, callsAcceptedAfterBlock: paidAfterRevoke, intervalMs });
+        }
+        log(`  ✗ call ${i}: HTTP ${res.status} ${body.error ?? ""}${timing}`);
         break;
       }
       if (revokeAfter && i === revokeAfter) {
         log(`  owner revokes pass #${passId} now (agent keeps calling)...`);
-        revokeTx = ownerTx("owner revokes pass mid-run", { address: dep.passVault, abi: passVaultAbi, functionName: "revoke", args: [passId] } as never).then(() => {
-          revokedAt = performance.now();
+        revokeTx = ownerTx("owner revokes pass mid-run", { address: dep.passVault, abi: passVaultAbi, functionName: "revoke", args: [passId] } as never).then(async (r) => {
+          const block = await client.getBlock({ blockNumber: r.blockNumber });
+          revokedAt = Number(block.timestamp) * 1000;
         });
       }
     }
@@ -298,6 +371,8 @@ const commands: Record<string, () => Promise<void>> = {
     if (j.nothingToSettle) return log("nothing to settle");
     log(`Merchant settled ${usd(BigInt(j.totalPaid ?? 0))} in ONE transaction, gas ${j.gasUsed}: ${j.hash && tx(j.hash)}`);
     if (j.hash) st.evidence({ label: "merchant settles all vouchers in one claimBatch", hash: j.hash, gasUsed: j.gasUsed });
+    // --requests N: this settlement covered N paid calls (the headline comparison uses it)
+    if (j.hash && flag("requests")) st.metric("batch", { requests: Number(flag("requests")), gasUsed: j.gasUsed, hash: j.hash, totalPaid: j.totalPaid });
   },
 
   async baseline() {
@@ -336,6 +411,7 @@ const commands: Record<string, () => Promise<void>> = {
     const seconds = (performance.now() - t0) / 1000;
     S.baseline = { n, totalGas: totalGas.toString(), avgGas: (totalGas / BigInt(n)).toString(), seconds: Math.round(seconds), firstHash: hashes[0]!, lastHash: hashes.at(-1)!, gasPrice: gasPrice.toString() };
     st.save();
+    st.metric("baseline", S.baseline);
     st.evidence({ label: `baseline: first of ${n} per-call transfers`, hash: hashes[0]! });
     st.evidence({ label: `baseline: last of ${n} per-call transfers`, hash: hashes.at(-1)!, note: `total gas ${totalGas}` });
     log(`Baseline: ${n} transactions, ${totalGas} gas in total (${totalGas / BigInt(n)} each), ${formatEther(totalGas * gasPrice)} tQDAY, ${seconds.toFixed(0)}s`);

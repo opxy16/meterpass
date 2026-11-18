@@ -46,9 +46,12 @@ export const kernelFactoryAbi = parseAbi([
 const EXECUTE_SELECTOR = "0xe9ae5c53" as const;
 const MODE_SINGLE = zeroHash;
 const MODE_BATCH = "0x0100000000000000000000000000000000000000000000000000000000000000" as const;
-/** A well-formed dummy signature for gas estimation (recovers to an unrelated address). */
+/**
+ * Dummy signature for gas estimation: a valid 65-byte ECDSA signature from a throwaway key derived
+ * from the public string "meterpass-stub-signer" (so it recovers to an unrelated address).
+ */
 export const STUB_SIGNATURE =
-  "0xfffffffffffffffffffffffffffffff0000000000000000000000000000000007aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1c" as const;
+  "0x540cecbd556e30e71c8499c85da0c19b773cc17f7028cb728484de07a6e20265567e02360778c12dbf00c41a0e0cb92c7bb0ccea49267f0cbb740418507f8a081c" as const;
 
 export interface SessionPolicy {
   /** Deployed MeterPassSessionValidator. */
@@ -83,17 +86,30 @@ export function sessionInstallData(p: SessionPolicy): Hex {
   ]);
 }
 
-export function kernelInitData(params: { owner: Address; session?: SessionPolicy; ecdsaValidator?: Address }): Hex {
+/**
+ * Kernel initialize() calldata. `initCalls` run as the account during deployment (Kernel executes
+ * initConfig entries as self-calls), so ONE factory transaction can create the account, install the
+ * session module and approve the budget.
+ */
+export function kernelInitData(params: {
+  owner: Address;
+  session?: SessionPolicy;
+  initCalls?: KernelCall[];
+  ecdsaValidator?: Address;
+}): Hex {
   const ecdsa = params.ecdsaValidator ?? AEVUM.kernelEcdsaValidator;
-  const initConfig: Hex[] = params.session
-    ? [
-        encodeFunctionData({
-          abi: kernelAbi,
-          functionName: "installModule",
-          args: [1n, params.session.validator, sessionInstallData(params.session)],
-        }),
-      ]
-    : [];
+  const initConfig: Hex[] = [
+    ...(params.session
+      ? [
+          encodeFunctionData({
+            abi: kernelAbi,
+            functionName: "installModule",
+            args: [1n, params.session.validator, sessionInstallData(params.session)],
+          }),
+        ]
+      : []),
+    ...(params.initCalls ?? []).map((c) => encodeKernelCalls([c])),
+  ];
   return encodeFunctionData({
     abi: kernelAbi,
     functionName: "initialize",
@@ -136,6 +152,18 @@ export function encodeKernelCalls(calls: readonly KernelCall[]): Hex {
       ),
     ],
   });
+}
+
+/**
+ * Deploy the account with a plain transaction to the Kernel factory. On Aevum the factory is not
+ * staked, so bundlers (ERC-7562) refuse deployments that touch validator storage inside a user
+ * operation; deploying first and then using the bundler for everything else is the standard fix.
+ */
+export function createAccountCall(initData: Hex, salt: Hex = zeroHash, factory: Address = AEVUM.kernelV31Factory) {
+  return {
+    to: factory,
+    data: encodeFunctionData({ abi: kernelFactoryAbi, functionName: "createAccount", args: [initData, salt] }),
+  } as const;
 }
 
 /** Kernel v3 nonce key selecting a non-root validator: [mode 0x00][type 0x01][validator][key]. */

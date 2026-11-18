@@ -1,0 +1,33 @@
+{
+  "batch": {
+    "requests": 250,
+    "gasUsed": "120653",
+    "hash": "0x1118b2a97743c65c94eaac697e3858b967a45bd935d7b1145510f081a66e387c",
+    "totalPaid": "500000"
+  },
+  "runs": [
+    {
+      "agent": "A",
+      "pass": "1",
+      "calls": 250,
+      "paid": 250,
+      "seconds": 4.7,
+      "msPerCall": 18.8,
+      "signMs": 1.4
+    }
+  ],
+  "revokeLatency": {
+    "secondsAfterBlock": 2.259,
+    "callsAcceptedAfterBlock": 11,
+    "intervalMs": 100
+  },
+  "baseline": {
+    "n": 250,
+    "totalGas": "21527668",
+    "avgGas": "86110",
+    "seconds": 93,
+    "firstHash": "0xa2b4d5475223f1778428428e5baf2d0f65bbbf6374b15aee3ed7aa13303d2fec",
+    "lastHash": "0x18c838e90e55d550632f7bf035dfa462af289b4b6fafb9eda9476a5bebce0776",
+    "gasPrice": "1000000000"
+  }
+}

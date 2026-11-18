@@ -17,6 +17,7 @@ export interface DemoState {
   account?: Address;
   initData?: Hex;
   salt?: Hex;
+  validUntil?: number;
   mainPass?: string;
   refundPass?: string;
   ledgers: Record<string, Record<string, { cumulative: string; signature: Hex }>>;
@@ -39,6 +40,14 @@ export class StateFile {
   save() {
     mkdirSync(dirname(this.path), { recursive: true });
     writeFileSync(this.path, JSON.stringify(this.state, null, 2));
+  }
+
+  /** Public, measured numbers for the dashboard and README (deployments/metrics-<chainId>.json). */
+  metric(key: string, value: unknown) {
+    const path = this.evidencePath.replace("evidence-", "metrics-");
+    const m: Record<string, unknown> = existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) : {};
+    m[key] = value;
+    writeFileSync(path, JSON.stringify(m, null, 2) + "\n");
   }
 
   evidence(e: Omit<Evidence, "at">) {

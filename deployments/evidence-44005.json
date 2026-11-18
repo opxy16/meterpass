@@ -1,0 +1,153 @@
+[
+  {
+    "label": "deploy AgentIdentityRegistry (CREATE2)",
+    "hash": "0xe4ccb9ab1a0c04551c0a0c842135fdc06b5bd36ec6d6f1e34c5f8da9fdea0d59",
+    "gasUsed": "2438618",
+    "at": "2026-11-18T00:09:18.480748Z"
+  },
+  {
+    "label": "deploy ReputationRegistry (CREATE2)",
+    "hash": "0xc4426483effb30abaec8d78a7bc7ca2fd34295276285b58ec8d4b495b5ef1cac",
+    "gasUsed": "1564561",
+    "at": "2026-11-18T00:09:18.480748Z"
+  },
+  {
+    "label": "deploy PassVault (CREATE2)",
+    "hash": "0x0cff429783a8ce508066d7014c170557cad1970d2f263d905eebc626dca839cb",
+    "gasUsed": "4636181",
+    "at": "2026-11-18T00:09:18.480748Z"
+  },
+  {
+    "label": "deploy MeterPassSessionValidator (CREATE2)",
+    "hash": "0xbdaa30b2447377d69329fd257e0b4fb67e22370ed77ac127cdb0396517ced096",
+    "gasUsed": "1738357",
+    "at": "2026-11-18T00:09:18.480748Z"
+  },
+  {
+    "label": "register merchant as ERC-8004 agent #1",
+    "hash": "0x4a867ffa7907fa121492aa5dadb8ba7920f1bcec769fd189e5727c77f4d7cddd",
+    "at": "2026-11-18T00:09:49.565899+00:00"
+  },
+  {
+    "label": "owner funds smart account with tUSD8",
+    "hash": "0x7ea45b7cd12beb0494cb642ff3808384cdfc54187cd93123039d48b2a2a70e40",
+    "gasUsed": "62383",
+    "at": "2026-11-18T00:10:28.261Z"
+  },
+  {
+    "label": "owner funds smart account with tQDAY for gas",
+    "hash": "0xc7087c5e45270a7c55a05f98ebd6ba2986efebc8daa85821e93210faf18ad7c9",
+    "gasUsed": "21000",
+    "at": "2026-11-18T00:10:30.399Z"
+  },
+  {
+    "label": "owner funds smart account with tUSD8",
+    "hash": "0xc77021319d110c012d58f2162d8be13d83266a5d0e839291e7182a4cbaf36f7b",
+    "gasUsed": "62371",
+    "at": "2026-11-18T00:10:59.771Z"
+  },
+  {
+    "label": "owner funds smart account with tQDAY for gas",
+    "hash": "0x24bc630350a84b0753d653beb9642dafb273c95e2d3e4b794b5231bcc6109d71",
+    "gasUsed": "21000",
+    "at": "2026-11-18T00:11:01.797Z"
+  },
+  {
+    "label": "owner funds smart account with tUSD8",
+    "hash": "0x1f998d265bd0da6808763bccfd408c413f4b189f8670b42d06a9e467eaf819e4",
+    "gasUsed": "62383",
+    "at": "2026-11-18T00:20:20.913Z"
+  },
+  {
+    "label": "owner funds smart account with tQDAY for gas",
+    "hash": "0xe21350f2ae2cdbe856a5b280f9a90d3021f6c8d3d136e2bf3afa680f3ba3e7a8",
+    "gasUsed": "21000",
+    "at": "2026-11-18T00:20:23.182Z"
+  },
+  {
+    "label": "owner: one tx creates smart account + session policy + budget approval",
+    "hash": "0xb5765153c959d508133cff0524a772f684b9da1a87d50a7a1cf0d8267260189d",
+    "gasUsed": "396020",
+    "at": "2026-11-18T00:20:29.587Z"
+  },
+  {
+    "label": "agent A opens pass via session key",
+    "hash": "0x26b359c54d5d9c1ecb4d712f0eb339ea8d587b041ad38baceab6e87ba15fa85d",
+    "gasUsed": "493089",
+    "note": "userOp 0x02ced481de996d3be532ef5f3b9cf432263790dba2eea950f5244cda23fd6837 via bundler",
+    "at": "2026-11-18T00:21:09.880Z"
+  },
+  {
+    "label": "merchant settles all vouchers in one claimBatch",
+    "hash": "0x1118b2a97743c65c94eaac697e3858b967a45bd935d7b1145510f081a66e387c",
+    "gasUsed": "120653",
+    "at": "2026-11-18T00:22:03.921Z"
+  },
+  {
+    "label": "owner revokes pass mid-run",
+    "hash": "0x4511f8a8c0ae72ecff89da28dcdaeae05e4cf51518d7f196a988b09de1aa75c7",
+    "gasUsed": "51069",
+    "at": "2026-11-18T00:22:47.069Z"
+  },
+  {
+    "label": "agent A opens pass via session key",
+    "hash": "0x3cbbdb9b68100b528b51902c9acb665ba3f08b2e3a02689b2e1061a754cf737c",
+    "gasUsed": "441587",
+    "note": "userOp 0x8b07ef9dc948354573ebdb4386125a6b10cbc672785a950de5faf0ae15990f0c via bundler",
+    "at": "2026-11-18T00:25:20.744Z"
+  },
+  {
+    "label": "owner revokes pass mid-run",
+    "hash": "0x504b1ae988aab0cd40dfe8dd573982870bd6a5a8e3371aa61a6805b7e34d4989",
+    "gasUsed": "51069",
+    "at": "2026-11-18T00:25:51.175Z"
+  },
+  {
+    "label": "owner reassigns pass to agent B",
+    "hash": "0x65f863e2fc93855624c62558d5dbfbba338ab01cc509975a9a565ada49ce371c",
+    "gasUsed": "53734",
+    "at": "2026-11-18T00:26:24.273Z"
+  },
+  {
+    "label": "merchant settles all vouchers in one claimBatch",
+    "hash": "0xeb2acd497cc0aa163b0c8f92e13fc88012724ccd0dd267e156f9a55621aabbff",
+    "gasUsed": "86453",
+    "at": "2026-11-18T00:26:57.026Z"
+  },
+  {
+    "label": "agent A opens a short pass (refund demo)",
+    "hash": "0xd90a71fb5a45072c2beec3cb43256fe51784d559e47866a121e3e4c22186dd29",
+    "gasUsed": "406948",
+    "note": "userOp 0x414fdc6d9a3c1d6b5a61429ef4ed24557fdd2d123c790179e48e407f31c72d84 via bundler",
+    "at": "2026-11-18T00:27:36.550Z"
+  },
+  {
+    "label": "baseline: first of 250 per-call transfers",
+    "hash": "0xa2b4d5475223f1778428428e5baf2d0f65bbbf6374b15aee3ed7aa13303d2fec",
+    "at": "2026-11-18T00:29:22.344Z"
+  },
+  {
+    "label": "baseline: last of 250 per-call transfers",
+    "hash": "0x18c838e90e55d550632f7bf035dfa462af289b4b6fafb9eda9476a5bebce0776",
+    "note": "total gas 21527668",
+    "at": "2026-11-18T00:29:22.354Z"
+  },
+  {
+    "label": "owner refund at expiry",
+    "hash": "0x3f06eaaafbfea18f7648ae0fb9d3cc7eaabe8e7754a08cdf99685f512c5fa776",
+    "gasUsed": "95348",
+    "at": "2026-11-18T00:34:39.896Z"
+  },
+  {
+    "label": "owner deploys stray account to recover its funds",
+    "hash": "0xd6b9dbee77a65474060c85e06bb910f16356e490761bd420b7ca8e0c0caafdfe",
+    "gasUsed": "354260",
+    "at": "2026-11-18T00:35:26.546Z"
+  },
+  {
+    "label": "owner deploys stray account to recover its funds",
+    "hash": "0x20d2d0ae93a17ad96f7288f3f8dd6278c5c86498d16f666968773aa957137b39",
+    "gasUsed": "354260",
+    "at": "2026-11-18T00:35:35.619Z"
+  }
+]

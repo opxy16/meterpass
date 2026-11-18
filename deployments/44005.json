@@ -1,0 +1,17 @@
+{
+  "chainId": 44005,
+  "entryPoint": "0x0000000071727De22E5E9d8BAf0edAc6f37da032",
+  "identityRegistry": "0x6486Cc21360b79A59FB1eFcC7e7e925485ef9Af1",
+  "kernelEcdsaValidator": "0x845ADb2C711129d4f3966735eD98a9F09fC4cE57",
+  "kernelFactory": "0xaac5D4240AF87249B3f71BC8E4A2cae074A3E419",
+  "passVault": "0xa81D0B14D94036C51D7f15e492Ed11637Bd21B13",
+  "reputationRegistry": "0xd69B3e2796Dd4e641d8C914ae606cCf70ea8460f",
+  "salt": "0x88a9231cf04c3765589548e8350c327d0a8c5cc8c04a5fb4fc950313457fd0ac",
+  "sessionValidator": "0xE276a5f14A12B5B5ccC8FD6c1d74d2B03D4791EF",
+  "settlementWindow": 300,
+  "startBlock": 3447438,
+  "token": "0x456569838f1d43009A91ebA4263147Afd7233483",
+  "merchantAgentId": 1,
+  "merchant": "0x3F281fFabcc88146bD4604890E1f2AF99d4C85ca",
+  "merchantRegisterTx": "0x4a867ffa7907fa121492aa5dadb8ba7920f1bcec769fd189e5727c77f4d7cddd"
+}
