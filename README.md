@@ -14,10 +14,12 @@ ERC-8004 agent identity.
 
 | | |
 |---|---|
-| Dashboard | _Vercel link added after deploy_ |
+| Live dashboard | **https://meterpass.vercel.app** (Live meter, Passes, Try it with your wallet, How) |
 | Demo video | _link added before submission_ |
 | Contracts | [Aevum testnet addresses](#deployed-on-aevum-testnet) |
 | Source of the deployed contracts | commit [`4f43bd5`](https://github.com/opxy16/meterpass/tree/4f43bd5e9710d2334c29530084a34e4f9e3b923c) |
+
+![The live dashboard: an odometer of calls paid by voucher, with a receipt tape of vouchers](docs/screens/live-hero.jpg)
 
 ---
 
@@ -33,6 +35,8 @@ run on chain 44005 (`deployments/metrics-44005.json`).
 | Gas | **21,527,668** (86,110 each) | **120,653** (about **178× less**) |
 | Time | 93 s of transactions | 4.7 s for all 250 calls (18.8 ms per call over HTTP, 1.4 ms to sign) |
 | Sample transactions | [first](https://explorer-test.qday.info/tx/0xa2b4d5475223f1778428428e5baf2d0f65bbbf6374b15aee3ed7aa13303d2fec), [last](https://explorer-test.qday.info/tx/0x18c838e90e55d550632f7bf035dfa462af289b4b6fafb9eda9476a5bebce0776) | [the one settlement](https://explorer-test.qday.info/tx/0x1118b2a97743c65c94eaac697e3858b967a45bd935d7b1145510f081a66e387c) |
+
+![250 per-call transactions against 250 vouchers collapsing into one claimBatch](docs/screens/250-vs-1.jpg)
 
 At mainnet scale the gap grows with traffic: a settlement costs about the same whether it covers 250
 calls or 25,000.
