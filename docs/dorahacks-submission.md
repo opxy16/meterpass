@@ -11,7 +11,7 @@ You click Submit yourself. Replace the one placeholder (demo video link) first.
 MeterPass
 
 **One-line description / tagline** (≤ 120 characters)
-Pay per request without a transaction per request: AI agents pay with vouchers, merchants settle hundreds of calls in one tx.
+Pay per request, settle once: AI agents pay every API call with a voucher; merchants settle them all in one tx.
 
 **Track**
 The public page lists no tracks. Pick **Decentralized Payments** (and **Native AI Assistants** too, if the
