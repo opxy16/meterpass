@@ -18,5 +18,11 @@
   },
   "devDependencies": {
     "viem": "^2.58.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "postcss": ">=8.5.23",
+      "sharp": ">=0.35.5"
+    }
   }
 }
