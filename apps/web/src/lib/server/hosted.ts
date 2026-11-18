@@ -88,11 +88,13 @@ function build() {
     store,
   });
 
-  const key = process.env.MERCHANT_PRIVATE_KEY as Hex | undefined;
+  // claimBatch pays the pass's merchant whoever submits it, so the low-funded relayer key can
+  // settle: the hosted site never needs the merchant's own key.
+  const key = (process.env.SETTLER_PRIVATE_KEY ?? process.env.RELAYER_PRIVATE_KEY ?? process.env.MERCHANT_PRIVATE_KEY) as Hex | undefined;
   const wallet = key ? createWalletClient({ account: privateKeyToAccount(key), chain, transport: http(process.env.AEVUM_RPC ?? RPC_URL) }) : null;
   let settling: Promise<unknown> | null = null;
   async function settleNow() {
-    if (!wallet) throw new Error("settlement is not configured on this deployment (MERCHANT_PRIVATE_KEY)");
+    if (!wallet) throw new Error("settlement is not configured on this deployment (RELAYER_PRIVATE_KEY)");
     if (settling) return settling as never;
     settling = (async () => {
       const vouchers = await merchant.claimable();

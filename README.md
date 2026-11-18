@@ -328,8 +328,7 @@ pnpm --filter @meterpass/web dev     # http://localhost:3000
 | `NEXT_PUBLIC_CHAIN_ID` | web | `44005` (default) |
 | `NEXT_PUBLIC_MERCHANT_URL` | web | external merchant URL; default is the dashboard's own `/api/merchant` |
 | `NEXT_PUBLIC_REPO_URL` | web | link to this repository |
-| `MERCHANT_PRIVATE_KEY` | web (server) | lets the hosted merchant settle |
-| `RELAYER_PRIVATE_KEY` | web (server) | pays gas for one-signature pass opening in the playground; keep it lightly funded |
+| `RELAYER_PRIVATE_KEY` | web (server) | the only key the hosted site needs: pays gas for one-signature pass opening and submits `claimBatch` (which always pays the merchant's wallet, whoever sends it). Keep it lightly funded. |
 | `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | web (server) | optional shared voucher store for the hosted merchant |
 | `TRUSTED_IP_HEADER` | web (server) | client-IP header for rate limits (`x-vercel-forwarded-for` on Vercel) |
 
