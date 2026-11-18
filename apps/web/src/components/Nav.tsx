@@ -9,7 +9,7 @@ const LINKS = [
   { href: "/", label: "Live" },
   { href: "/passes", label: "Passes" },
   { href: "/playground", label: "Try it" },
-  { href: "/how", label: "How it works" },
+  { href: "/how", label: "How" },
 ];
 
 export function Nav() {
@@ -48,7 +48,7 @@ export function Nav() {
               <circle cx="13" cy="12" r="1.6" fill="#0a0b17" />
             </svg>
           </span>
-          MeterPass
+          <span className="brand-name">MeterPass</span>
         </Link>
         <div className="nav-links">
           {LINKS.map((l) => (

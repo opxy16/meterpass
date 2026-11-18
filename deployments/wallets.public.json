@@ -18,5 +18,9 @@
   "AGENT_B": {
     "address": "0x65e3019d5f5A561537eDd0F944aFBdFEf82660f3",
     "purpose": "agent B session key: takes over a pass after reassignment"
+  },
+  "RELAYER": {
+    "address": "0xE90A46a9186eA39C070A4b5F3273B6C57Eac8B76",
+    "purpose": "hosted playground relayer: pays gas for one-signature pass opening (keep lightly funded)"
   }
 }

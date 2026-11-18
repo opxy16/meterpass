@@ -183,7 +183,7 @@ export default function Playground() {
   async function settle() {
     setBusy("settle");
     try {
-      const res = await fetch("/api/settle", { method: "POST" });
+      const res = await fetch("/api/merchant/settle", { method: "POST" });
       const j = (await res.json()) as { hash?: Hex; totalPaid?: string; gasUsed?: string; requests?: number; nothingToSettle?: boolean; error?: string };
       if (j.nothingToSettle) say("info", "Nothing new to settle.");
       else if (j.hash) say("ok", `Merchant settled ${formatTusd8(BigInt(j.totalPaid ?? 0), 3)} tUSD8 in ONE transaction (${Number(j.gasUsed).toLocaleString()} gas).`, j.hash);

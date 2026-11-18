@@ -32,10 +32,10 @@ export const evidence = ((evidenceJson as Record<string, Evidence[]>)[String(CHA
 export interface Metrics {
   baseline?: { n: number; totalGas: string; avgGas: string; seconds: number; firstHash: string; lastHash: string; gasPrice: string };
   batch?: { requests: number; gasUsed: string; hash: string; seconds?: number };
-  runs?: { agent: string; pass: string; calls: number; paid: number; ms: number; at: string; note?: string }[];
-  revokeLatency?: { callsAfterRevokeSent: number; secondsAfterReceipt?: number };
+  runs?: { agent: string; pass: string; calls: number; paid: number; seconds?: number; msPerCall?: number; signMs?: number }[];
+  revokeLatency?: { secondsAfterBlock?: number; callsAcceptedAfterBlock?: number; intervalMs?: number };
 }
-export const metrics = ((metricsJson as Record<string, Metrics>)[String(CHAIN_ID)] ?? {}) as Metrics;
+export const metrics = ((metricsJson as unknown as Record<string, Metrics>)[String(CHAIN_ID)] ?? {}) as Metrics;
 
 /** Where the merchant API lives: a separately hosted merchant, or this app's own /api/merchant. */
 export const MERCHANT_URL = process.env.NEXT_PUBLIC_MERCHANT_URL || "/api/merchant";

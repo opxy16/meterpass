@@ -193,7 +193,7 @@ export default function PassesPage() {
                 <dt>Merchant</dt>
                 <dd>agent #{p.merchantAgentId.toString()}</dd>
                 <dt>Agent key</dt>
-                <dd>{p.authorizer === ZERO ? "none (revoked)" : <a href={explorerAddr(p.authorizer)} target="_blank" rel="noreferrer">{short(p.authorizer)}</a>}</dd>
+                <dd>{p.authorizer === ZERO ? (p.closed ? "none" : "none (revoked)") : <a href={explorerAddr(p.authorizer)} target="_blank" rel="noreferrer">{short(p.authorizer)}</a>}</dd>
                 <dt>Owner</dt>
                 <dd><a href={explorerAddr(p.owner)} target="_blank" rel="noreferrer">{short(p.owner)}</a></dd>
                 <dt>Expires</dt>

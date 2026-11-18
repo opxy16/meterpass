@@ -20,7 +20,13 @@ export function Pipeline({ events, live }: { events: FeedEvent[]; live: boolean 
   const seen = useRef(0);
   const nextId = useRef(1);
   const lastTop = useRef<FeedEvent | undefined>(undefined);
-  const idleDemo = !live || events.length === 0;
+  const lastPaidAt = events.find((e) => e.type === "paid")?.at ?? 0;
+  const [clock, setClock] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setClock(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const idleDemo = !live || clock - lastPaidAt > 5000;
 
   // new live events -> packets
   useEffect(() => {
@@ -120,7 +126,7 @@ export function Pipeline({ events, live }: { events: FeedEvent[]; live: boolean 
       </svg>
       {idleDemo && (
         <span className="chip" style={{ position: "absolute", left: 16, bottom: 14, marginTop: 0 }}>
-          illustration · start the demo agent to see live traffic
+          illustration · live packets appear while an agent is paying
         </span>
       )}
     </div>

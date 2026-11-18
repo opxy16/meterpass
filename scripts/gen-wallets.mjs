@@ -18,6 +18,7 @@ const ROLES = [
   ["MERCHANT", "API seller: receives tUSD8, submits batch claims"],
   ["AGENT_A", "agent A session key: opens passes inside the policy, signs vouchers"],
   ["AGENT_B", "agent B session key: takes over a pass after reassignment"],
+  ["RELAYER", "hosted playground relayer: pays gas for one-signature pass opening (keep lightly funded)"],
 ];
 
 const SECP256K1_N = BigInt("0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141");

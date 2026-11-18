@@ -127,7 +127,20 @@ function build() {
       settleIntervalSeconds: 0,
     },
   });
-  const app = new Hono().basePath("/api/merchant").route("/", inner);
+  const app = new Hono().basePath("/api/merchant");
+  // Public "settle now" for the playground. It lives in the same function as the voucher store,
+  // so it works even without Redis on a single instance; with Redis it works across instances.
+  app.post("/settle", async (c) => {
+    if (rateLimited("settle", 1, 20_000)) return c.json({ error: "settled moments ago, try again in 20 seconds" }, 429);
+    try {
+      const result = (await settleNow()) as { hash: string; gasUsed: bigint; totalPaid: bigint } | null;
+      if (!result) return c.json({ nothingToSettle: true });
+      return c.json({ hash: result.hash, gasUsed: result.gasUsed.toString(), totalPaid: result.totalPaid.toString() });
+    } catch (e) {
+      return c.json({ error: (e as { shortMessage?: string }).shortMessage ?? (e as Error).message }, 500);
+    }
+  });
+  app.route("/", inner);
   return { app, settleNow, merchant, client, wallet };
 }
 
