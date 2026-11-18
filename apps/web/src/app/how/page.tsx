@@ -5,65 +5,66 @@ export const metadata = { title: "How MeterPass works" };
 
 const steps = [
   {
-    t: "The owner approves once",
-    d: "One signature creates a Kernel v3.1 smart account and installs a session key for the agent: which merchants (by ERC-8004 id), how much in total, until when. Or, without a smart account, one EIP-3009 signature opens a single pass.",
-    chip: "1 signature",
+    t: "You approve once",
+    d: "One transaction creates a smart account and gives your agent a session key: which merchants (by ERC-8004 id), how much in total, until when. Or one EIP-3009 signature opens a single pass.",
   },
   {
     t: "The agent opens a pass",
-    d: "Using only its session key, through the Aevum bundler, the agent moves part of the budget into a pass: an ERC-721 that escrows tUSD8 for one merchant. The pass NFT belongs to the owner, not the agent.",
-    chip: "ERC-721 · escrow",
+    d: "With only its session key, through the Aevum bundler, the agent moves part of the budget into a pass: an NFT that holds tUSD8 for one merchant. You own the NFT, not the agent.",
   },
   {
-    t: "Every request: a voucher",
-    d: "The API answers 402 with an x402 `batch-settlement` offer. The agent signs “pass #7, 0.502 tUSD8 used so far” (EIP-712) and retries. The merchant checks the signature in about a millisecond. No transaction.",
-    chip: "0 gas · ~ms",
+    t: "Each call is paid with a voucher",
+    d: "The API answers 402 with a batch-settlement offer. The agent signs “pass 7, 0.502 tUSD8 used so far” and retries. The merchant checks it in about a millisecond. No transaction.",
   },
   {
     t: "The merchant settles in bulk",
-    d: "Whenever it likes, the merchant submits the latest voucher of each pass in one claimBatch transaction and receives the difference since its last claim. 250 requests, 1 transaction.",
-    chip: "1 tx for N calls",
+    d: "Whenever it likes, the merchant submits the latest voucher of each pass in one claimBatch transaction and is paid the difference since its last claim.",
   },
 ];
 
-const guarantees = [
-  ["Vouchers are cumulative", "Each voucher states the running total, so replaying an old one or sending them out of order pays nothing extra."],
-  ["Bound to chain + vault + pass", "The EIP-712 domain includes the chain id and the vault address, and the message includes the pass id."],
-  ["Claims never exceed the deposit", "PassVault refuses any voucher above what was deposited; an invariant test checks this over thousands of random runs."],
-  ["Refunds wait for the merchant", "Unused credit goes back to the owner only after expiry (or a close request) plus the settlement window, which is longer than the merchant's claim interval."],
-  ["Revocation is instant", "The owner clears the pass's agent key. The merchant's cache sees it within about one block; the next request gets 402. Vouchers signed before the revoke stay claimable for the window, so honest merchants are paid for work done."],
-  ["The agent can't be talked into paying", "Its only payment tool signs vouchers for its pass, its merchant, at its price limit. Its session key can't call the token. A prompt-injected “send 5 tUSD8” has nowhere to go."],
+const guarantees: [string, string][] = [
+  ["Vouchers carry a running total", "Each voucher states the total used so far, so sending an old one again, or sending them out of order, pays nothing extra."],
+  ["They only work for one chain, vault and pass", "The signed message names the pass; the signature domain names the chain and the vault."],
+  ["Claims never exceed the deposit", "PassVault refuses any voucher above what was deposited. An invariant test checks this across thousands of random runs."],
+  ["Refunds wait for the merchant", "Unused credit returns to you only after expiry (or a close request) plus the settlement window, which is longer than the merchant's claim interval."],
+  ["Revoking stops the agent", "Clear the pass's agent key and the merchant refuses the next request, about 2 seconds after the block on Aevum. Vouchers signed before the revoke stay claimable for the window, so honest merchants are paid for work done."],
+  ["The agent can't be talked into paying", "Its only payment tool signs vouchers for its pass, its merchant, under its price limit. Its session key can't call the token at all."],
 ];
 
 export default function HowPage() {
   return (
     <>
-      <section className="section">
-        <div className="eyebrow">How it works</div>
-        <h2>A prepaid meter for AI agents</h2>
-        <p className="lead" style={{ marginTop: 10 }}>
-          Paying per API call on-chain means one transaction, and one fee, per call. MeterPass works like a payment
-          channel: money is locked once, every call is paid by an off-chain signature, and the merchant collects the
-          total whenever it wants. It speaks x402, the HTTP 402 payment standard, with a new scheme:{" "}
-          <span className="mono">batch-settlement</span>.
-        </p>
+      <section className="block" style={{ marginTop: 48 }}>
+        <div className="head">
+          <h2>A prepaid meter for AI agents</h2>
+          <p>
+            Paying per call on-chain means one transaction, and one fee, per call. MeterPass works like a payment channel:
+            money is locked once, every call is paid by an off-chain signature, and the merchant collects the total
+            whenever it wants. It speaks x402, the HTTP 402 payment standard, with a new scheme called batch-settlement.
+          </p>
+        </div>
+        <ol className="seq">
+          {steps.map((s, i) => (
+            <li key={s.t}>
+              <span className="k" aria-hidden>
+                {i + 1}
+              </span>
+              <h3>{s.t}</h3>
+              <p>{s.d}</p>
+            </li>
+          ))}
+        </ol>
       </section>
 
-      <section className="section flow">
-        {steps.map((s, i) => (
-          <div key={s.t} className="glass step">
-            <div className="num">{i + 1}</div>
-            <h3>{s.t}</h3>
-            <p>{s.d}</p>
-            <span className="chip ok">{s.chip}</span>
-          </div>
-        ))}
-      </section>
-
-      <section className="section two-col">
-        <div className="glass pad">
-          <div className="card-title">The 402 offer (PAYMENT-REQUIRED, decoded)</div>
-          <pre className="mono" style={{ fontSize: 12.5, lineHeight: 1.55, overflowX: "auto", marginTop: 12, color: "var(--ink-2)" }}>{`{
+      <section className="block" aria-labelledby="wire-title">
+        <div className="head">
+          <h2 id="wire-title">What travels over HTTP</h2>
+          <p>Standard x402 headers, decoded. The server asks; the agent answers with a voucher.</p>
+        </div>
+        <div className="pair">
+          <div>
+            <h3>The server&apos;s offer, in PAYMENT-REQUIRED</h3>
+            <pre className="code">{`{
   "x402Version": 2,
   "accepts": [{
     "scheme": "batch-settlement",
@@ -78,38 +79,39 @@ export default function HowPage() {
     }
   }]
 }`}</pre>
-        </div>
-        <div className="glass pad">
-          <div className="card-title">The payment (PAYMENT-SIGNATURE, decoded)</div>
-          <pre className="mono" style={{ fontSize: 12.5, lineHeight: 1.55, overflowX: "auto", marginTop: 12, color: "var(--ink-2)" }}>{`{
+          </div>
+          <div>
+            <h3>The agent&apos;s payment, in PAYMENT-SIGNATURE</h3>
+            <pre className="code">{`{
   "x402Version": 2,
-  "accepted": { …the offer above… },
+  "accepted": { …the offer… },
   "payload": {
     "passId": "7",
     "cumulativeAmount": "502000",
-    "signature": "0x…"   // EIP-712 Voucher
+    "signature": "0x…"   // EIP-712
   }
 }
 
-Voucher(uint256 passId, uint128 cumulativeAmount)
-domain: MeterPass v1, chainId 44005, PassVault`}</pre>
+Voucher(uint256 passId,
+        uint128 cumulativeAmount)
+domain: MeterPass v1, chain 44005, PassVault`}</pre>
+          </div>
         </div>
       </section>
 
-      <section className="section">
-        <div className="section-head">
-          <div>
-            <div className="eyebrow">Guarantees</div>
-            <h2>What the contracts enforce</h2>
-          </div>
+      <section className="block" aria-labelledby="g-title">
+        <div className="head">
+          <h2 id="g-title">What the contracts guarantee</h2>
         </div>
-        <div className="glass table-wrap">
-          <table className="table">
+        <div className="table-wrap">
+          <table>
             <tbody>
               {guarantees.map(([k, v]) => (
                 <tr key={k}>
-                  <td style={{ fontWeight: 600, width: "28%" }}>{k}</td>
-                  <td className="muted" style={{ lineHeight: 1.55 }}>{v}</td>
+                  <th scope="row" style={{ color: "var(--ink)", fontSize: 15, width: "32%" }}>
+                    {k}
+                  </th>
+                  <td style={{ color: "var(--ink-2)" }}>{v}</td>
                 </tr>
               ))}
             </tbody>
@@ -117,17 +119,19 @@ domain: MeterPass v1, chainId 44005, PassVault`}</pre>
         </div>
       </section>
 
-      <section className="section two-col">
-        <div className="glass pad">
-          <div className="card-title">Contracts on Aevum testnet</div>
+      <section className="block pair" aria-label="Contracts and SDK">
+        <div>
+          <div className="head" style={{ marginBottom: 16 }}>
+            <h2>Contracts on Aevum</h2>
+          </div>
           {deployment ? (
-            <dl className="kv">
+            <dl className="kv" style={{ fontSize: 15 }}>
               {(
                 [
                   ["PassVault", deployment.passVault],
                   ["Session validator", deployment.sessionValidator],
-                  ["ERC-8004 Identity", deployment.identityRegistry],
-                  ["ERC-8004 Reputation", deployment.reputationRegistry],
+                  ["ERC-8004 identity", deployment.identityRegistry],
+                  ["ERC-8004 reputation", deployment.reputationRegistry],
                   ["tUSD8", deployment.token],
                   ["EntryPoint v0.7", deployment.entryPoint],
                   ["Kernel v3.1 factory", deployment.kernelFactory],
@@ -136,7 +140,7 @@ domain: MeterPass v1, chainId 44005, PassVault`}</pre>
                 <div key={k} style={{ display: "contents" }}>
                   <dt>{k}</dt>
                   <dd>
-                    <a href={explorerAddr(a)} target="_blank" rel="noreferrer" style={{ color: "var(--cyan)" }}>
+                    <a href={explorerAddr(a)} target="_blank" rel="noreferrer">
                       {short(a, 6)}
                     </a>
                   </dd>
@@ -147,9 +151,11 @@ domain: MeterPass v1, chainId 44005, PassVault`}</pre>
             <p className="muted">Not deployed on this network yet.</p>
           )}
         </div>
-        <div className="glass pad">
-          <div className="card-title">Use it in your API</div>
-          <pre className="mono" style={{ fontSize: 12.5, lineHeight: 1.55, overflowX: "auto", marginTop: 12, color: "var(--ink-2)" }}>{`import { createMeterPassFetch } from "@meterpass/sdk";
+        <div>
+          <div className="head" style={{ marginBottom: 16 }}>
+            <h2>Use it from code</h2>
+          </div>
+          <pre className="code">{`import { createMeterPassFetch } from "@meterpass/sdk";
 
 const pay = createMeterPassFetch({
   signer: agentKey, chainId: 44005, passId,
@@ -157,8 +163,12 @@ const pay = createMeterPassFetch({
 });
 const res = await pay("https://api…/v1/data");`}</pre>
           <div className="actions">
-            <a className="btn small" href={REPO_URL} target="_blank" rel="noreferrer">Read the code</a>
-            <Link className="btn small primary" href="/playground">Try it</Link>
+            <a className="btn small" href={REPO_URL} target="_blank" rel="noreferrer">
+              Read the source
+            </a>
+            <Link className="btn solid small" href="/playground">
+              Try it with your wallet
+            </Link>
           </div>
         </div>
       </section>

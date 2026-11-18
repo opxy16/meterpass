@@ -22,37 +22,61 @@ export interface MerchantStats {
   settlementGas: string;
 }
 
-/** Live merchant feed: SSE /events, plus /stats polling. Works with any MeterPass merchant URL. */
+/**
+ * Live merchant feed: Server-Sent Events from /events, with /history polling whenever the stream
+ * is not open (serverless hosts cut long connections), plus /stats polling.
+ */
 export function useMerchantFeed(base: string = MERCHANT_URL) {
   const [events, setEvents] = useState<FeedEvent[]>([]);
   const [stats, setStats] = useState<MerchantStats | null>(null);
-  const [connected, setConnected] = useState(false);
+  const [streaming, setStreaming] = useState(false);
+  const [reachable, setReachable] = useState(false);
   const [rate, setRate] = useState(0);
   const stamps = useRef<number[]>([]);
 
   useEffect(() => {
     let es: EventSource | null = null;
     let alive = true;
-    const push = (e: FeedEvent) => {
-      if (e.type === "paid") stamps.current.push(Date.now());
-      setEvents((prev) => [e, ...prev].slice(0, 120));
+    let open = false;
+    const seen = new Set<string>();
+    const keyOf = (e: FeedEvent) => `${e.type}:${e.at}:${"cumulative" in e ? e.cumulative : "hash" in e ? e.hash : ""}`;
+    const merge = (incoming: FeedEvent[]) => {
+      const fresh = incoming.filter((e) => !seen.has(keyOf(e)));
+      if (fresh.length === 0) return;
+      for (const e of fresh) {
+        seen.add(keyOf(e));
+        if (e.type === "paid" && Date.now() - e.at < 4000) stamps.current.push(Date.now());
+      }
+      setEvents((prev) => [...fresh, ...prev].sort((a, b) => b.at - a.at).slice(0, 120));
     };
     try {
       es = new EventSource(`${base}/events`);
-      es.onopen = () => setConnected(true);
-      es.onerror = () => setConnected(false);
+      es.onopen = () => {
+        open = true;
+        setStreaming(true);
+      };
+      es.onerror = () => {
+        open = false;
+        setStreaming(false);
+      };
       for (const t of ["paid", "rejected", "settled", "settle_failed", "pass"]) {
-        es.addEventListener(t, (m) => push(JSON.parse((m as MessageEvent).data)));
+        es.addEventListener(t, (m) => merge([JSON.parse((m as MessageEvent).data)]));
       }
     } catch {
-      setConnected(false);
+      /* no EventSource: polling covers it */
     }
     const poll = async () => {
       try {
-        const r = await fetch(`${base}/stats`, { cache: "no-store" });
-        if (r.ok && alive) setStats(await r.json());
+        const [s, h] = await Promise.all([
+          fetch(`${base}/stats`, { cache: "no-store" }),
+          open ? null : fetch(`${base}/history?limit=60`, { cache: "no-store" }),
+        ]);
+        if (!alive) return;
+        setReachable(s.ok);
+        if (s.ok) setStats(await s.json());
+        if (h?.ok) merge(((await h.json()) as FeedEvent[]).reverse());
       } catch {
-        /* merchant offline */
+        if (alive) setReachable(false);
       }
     };
     void poll();
@@ -70,7 +94,7 @@ export function useMerchantFeed(base: string = MERCHANT_URL) {
     };
   }, [base]);
 
-  return { events, stats, connected, rate };
+  return { events, stats, connected: reachable || streaming, streaming, rate };
 }
 
 export interface ChainStats {
@@ -88,6 +112,9 @@ export function useChainStats(pollMs = 6000): ChainStats {
     if (!deployment) return;
     const vault = deployment.passVault as Address;
     let alive = true;
+    // Scan the vault's history once, then only read blocks added since (Aevum caps getLogs at 1,000 blocks).
+    let scannedTo = BigInt(deployment.startBlock) - 1n;
+    let claims: ChainStats["claims"] = [];
     const load = async () => {
       try {
         const [next, escrowed, settled] = await Promise.all([
@@ -100,16 +127,24 @@ export function useChainStats(pollMs = 6000): ChainStats {
             args: [BigInt(deployment!.merchantAgentId ?? 0)],
           }),
         ]);
-        const logs = await getLogsChunked(publicClient as never, {
-          address: vault,
-          events: [getAbiItem({ abi: passVaultAbi, name: "Claimed" })],
-          fromBlock: BigInt(deployment!.startBlock),
-        });
-        const claims = logs.map((l) => {
-          const a = (l as unknown as { args: { passId: bigint; paid: bigint; cumulativeAmount: bigint } }).args;
-          return { hash: l.transactionHash!, passId: a.passId, paid: a.paid, cumulative: a.cumulativeAmount, block: l.blockNumber! };
-        });
-        if (alive) setS({ passesOpened: Number(next) - 1, escrowed, settledVolume: settled, claims: claims.reverse(), loaded: true });
+        // Cheap facts first, so the meter has a number before the history scan finishes.
+        if (alive) setS((prev) => ({ ...prev, passesOpened: Number(next) - 1, escrowed, settledVolume: settled }));
+        const head = await publicClient.getBlockNumber();
+        if (head > scannedTo) {
+          const logs = await getLogsChunked(publicClient as never, {
+            address: vault,
+            events: [getAbiItem({ abi: passVaultAbi, name: "Claimed" })],
+            fromBlock: scannedTo + 1n,
+            toBlock: head,
+          });
+          const fresh = logs.map((l) => {
+            const a = (l as unknown as { args: { passId: bigint; paid: bigint; cumulativeAmount: bigint } }).args;
+            return { hash: l.transactionHash!, passId: a.passId, paid: a.paid, cumulative: a.cumulativeAmount, block: l.blockNumber! };
+          });
+          claims = [...fresh.reverse(), ...claims];
+          scannedTo = head;
+        }
+        if (alive) setS({ passesOpened: Number(next) - 1, escrowed, settledVolume: settled, claims, loaded: true });
       } catch {
         if (alive) setS((p) => ({ ...p, loaded: true }));
       }

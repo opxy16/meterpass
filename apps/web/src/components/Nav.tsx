@@ -39,28 +39,28 @@ export function Nav() {
   }, []);
 
   return (
-    <nav className="nav">
-      <div className="container nav-inner">
-        <Link href="/" className="brand">
+    <nav className="nav" aria-label="Main">
+      <div className="wrap nav-row">
+        <Link href="/" className="brand" aria-label="MeterPass home">
           <span className="brand-mark" aria-hidden>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M2 12V4l4 5 4-5v8" stroke="#0a0b17" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-              <circle cx="13" cy="12" r="1.6" fill="#0a0b17" />
-            </svg>
+            <span>0</span>
+            <span>2</span>
           </span>
           <span className="brand-name">MeterPass</span>
         </Link>
         <div className="nav-links">
           {LINKS.map((l) => (
-            <Link key={l.href} href={l.href} className={path === l.href ? "active" : ""}>
+            <Link key={l.href} href={l.href} aria-current={path === l.href ? "page" : undefined}>
               {l.label}
             </Link>
           ))}
         </div>
-        <span className="net-pill" title="Live block height from the Aevum RPC">
-          <span className={`dot ${ok ? "" : "off"}`} />
-          {CHAIN_ID === 44005 ? "Aevum testnet" : `chain ${CHAIN_ID}`}
-          {block !== null && <span className="muted">#{block.toLocaleString()}</span>}
+        <span className="chain-lamp" title="Latest block on the Aevum RPC">
+          <span className={`lamp ${ok ? "" : "off"}`} aria-hidden />
+          <span className="chain-text">
+            {CHAIN_ID === 44005 ? "Aevum testnet" : `Chain ${CHAIN_ID}`}
+            {block !== null && `, block ${block.toLocaleString()}`}
+          </span>
         </span>
       </div>
     </nav>

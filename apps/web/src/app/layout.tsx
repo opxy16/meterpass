@@ -1,7 +1,11 @@
 import type { Metadata, Viewport } from "next";
+import { Archivo } from "next/font/google";
 import "./globals.css";
 import { Nav } from "@/components/Nav";
 import { REPO_URL, deployment, explorerAddr, short } from "@/lib/config";
+
+// One family, used through its width axis: expanded for headlines, condensed for meter digits.
+const archivo = Archivo({ subsets: ["latin"], axes: ["wdth"], variable: "--font-archivo", display: "swap" });
 
 export const metadata: Metadata = {
   title: "MeterPass: pay per request, settle once",
@@ -9,35 +13,40 @@ export const metadata: Metadata = {
     "AI agents pay for every API call with an off-chain voucher; the merchant settles hundreds of calls in one transaction. x402 batch settlement on QDay Aevum.",
 };
 
-export const viewport: Viewport = { themeColor: "#070912", width: "device-width", initialScale: 1 };
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#e6eaed" },
+    { media: "(prefers-color-scheme: dark)", color: "#0b1c22" },
+  ],
+};
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={archivo.variable}>
       <body>
-        <div className="ambient" aria-hidden>
-          <div className="grid-bg" />
-          <div className="orb a" />
-          <div className="orb b" />
-        </div>
+        <a href="#main" className="sr-only">
+          Skip to content
+        </a>
         <Nav />
-        <main className="container">{children}</main>
-        <footer className="container footer">
-          <span>
-            MeterPass · built for Aevum Builder Challenge #1 · testnet only (tUSD8 has no value)
-          </span>
+        <main id="main" className="wrap">
+          {children}
+        </main>
+        <footer className="wrap footer">
+          <span>MeterPass, built for Aevum Builder Challenge #1. Testnet only: tUSD8 has no value.</span>
           <span>
             {deployment && (
               <>
-                vault{" "}
-                <a className="mono" href={explorerAddr(deployment.passVault)} target="_blank" rel="noreferrer">
+                PassVault{" "}
+                <a href={explorerAddr(deployment.passVault)} target="_blank" rel="noreferrer">
                   {short(deployment.passVault)}
-                </a>{" "}
-                ·{" "}
+                </a>
+                {", "}
               </>
             )}
             <a href={REPO_URL} target="_blank" rel="noreferrer">
-              source (MIT)
+              source code (MIT)
             </a>
           </span>
         </footer>

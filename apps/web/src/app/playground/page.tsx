@@ -198,110 +198,128 @@ export default function Playground() {
   const stepDone = [!!address, !!agent, passId !== null, progress.done > 0];
   const current = stepDone.findIndex((d) => !d);
 
-  if (!deployment) return <div className="glass pad section">The playground goes live once MeterPass is deployed on Aevum.</div>;
+  if (!deployment) return <p className="block muted">The playground goes live once MeterPass is deployed on Aevum.</p>;
+  const cls = (i: number) => `step ${stepDone[i] ? "done" : current === i ? "current" : ""}`;
 
   return (
     <>
-      <section className="section">
-        <div className="eyebrow">Playground · Aevum testnet · test tokens only</div>
-        <h2>Give an agent a pass, then watch it pay</h2>
-        <p className="lead" style={{ marginTop: 8 }}>
-          You need a little tUSD8 (and tQDAY only for revoking). Get both from the QDay Discord faucet. Everything here is
-          testnet; tUSD8 has no value.
-        </p>
+      <section className="block" style={{ marginTop: 48 }}>
+        <div className="head">
+          <h2>Give an agent a pass, then watch it pay</h2>
+          <p>
+            You need a little tUSD8, and tQDAY only if you want to revoke from your wallet. Both come from the QDay
+            Discord faucet. This is testnet: tUSD8 has no value.
+          </p>
+        </div>
       </section>
 
-      <section className="two-col" style={{ marginTop: 22, alignItems: "start" }}>
-        <div className="steps-v">
-          <div className={`glass pstep ${stepDone[0] ? "done" : current === 0 ? "current" : ""}`}>
-            <div className="badge">1</div>
+      <section className="split" style={{ alignItems: "start" }}>
+        <ol className="steps">
+          <li className={cls(0)}>
+            <div className="n" aria-hidden>1</div>
             <div>
               <h3>Connect your wallet</h3>
-              <p>MetaMask, Rabby or any browser wallet. We switch it to Aevum testnet (chain 44005).</p>
+              <p>MetaMask, Rabby or any browser wallet. It will be switched to Aevum testnet (chain 44005).</p>
               {address ? (
-                <div className="note ok">
-                  {short(address)} · {bal ? `${formatTusd8(bal.usd, 3)} tUSD8 · ${Number(formatEther(bal.gas)).toFixed(4)} tQDAY` : "reading balances…"}
+                <div className="notice ok">
+                  Connected as {short(address)}.{" "}
+                  {bal ? `${formatTusd8(bal.usd, 3)} tUSD8 and ${Number(formatEther(bal.gas)).toFixed(4)} tQDAY.` : "Reading balances…"}
                 </div>
               ) : (
-                <div className="actions"><button className="btn primary" onClick={connect}>Connect wallet</button></div>
+                <div className="actions">
+                  <button className="btn solid" onClick={connect}>Connect wallet</button>
+                </div>
               )}
-              {error && <div className="note err">{error}</div>}
+              {error && <div className="notice err" role="alert">{error}</div>}
             </div>
-          </div>
+          </li>
 
-          <div className={`glass pstep ${stepDone[1] ? "done" : current === 1 ? "current" : ""}`}>
-            <div className="badge">2</div>
+          <li className={cls(1)}>
+            <div className="n" aria-hidden>2</div>
             <div>
               <h3>Create an agent key</h3>
-              <p>A throwaway key, kept in this tab. It can sign vouchers for your pass, and nothing else: it holds no money.</p>
-              {agent ? <div className="note ok mono">agent {short(agent.address, 6)}</div> : <div className="actions"><button className="btn" onClick={makeAgent} disabled={!address}>Create agent key</button></div>}
+              <p>A throwaway key that lives in this browser tab. It can sign vouchers for the pass you give it, and nothing else: it holds no money.</p>
+              {agent ? (
+                <div className="notice ok">Agent key {short(agent.address, 6)} is ready.</div>
+              ) : (
+                <div className="actions">
+                  <button className="btn" onClick={makeAgent} disabled={!address}>Create agent key</button>
+                </div>
+              )}
             </div>
-          </div>
+          </li>
 
-          <div className={`glass pstep ${stepDone[2] ? "done" : current === 2 ? "current" : ""}`}>
-            <div className="badge">3</div>
+          <li className={cls(2)}>
+            <div className="n" aria-hidden>3</div>
             <div>
               <h3>Open a pass with one signature</h3>
-              <p>You sign once (EIP-3009). That signature names the amount, the merchant, your agent and a 1-hour expiry; nobody can change them. A relayer pays the gas.</p>
-              <div className="actions">
+              <p>Your wallet signs once. The signature fixes the amount, the merchant, your agent and a one-hour expiry, so nobody can change them. A relayer pays the gas.</p>
+              <div className="actions" role="group" aria-label="Pass amount">
                 {["0.05", "0.1", "0.25"].map((a) => (
-                  <button key={a} className={`btn small ${amount === a ? "primary" : ""}`} onClick={() => setAmount(a)}>{a} tUSD8</button>
+                  <button key={a} className="btn small" aria-pressed={amount === a} onClick={() => setAmount(a)}>{a} tUSD8</button>
                 ))}
-                <button className="btn primary" disabled={!agent || !address || busy !== null} onClick={openPass}>{busy === "open" ? "Opening…" : "Sign & open pass"}</button>
               </div>
-              {passId !== null && <div className="note ok">Pass #{passId.toString()} is yours (see it on the Passes page).</div>}
-            </div>
-          </div>
-
-          <div className={`glass pstep ${stepDone[3] ? "done" : current === 3 ? "current" : ""}`}>
-            <div className="badge">4</div>
-            <div>
-              <h3>Let the agent pay per request</h3>
-              <p>Each call is paid with a voucher signed in your browser: no wallet pop-up, no gas, a few milliseconds.</p>
               <div className="actions">
+                <button className="btn solid" disabled={!agent || !address || busy !== null} onClick={openPass}>{busy === "open" ? "Waiting for your signature…" : "Sign and open pass"}</button>
+              </div>
+              {passId !== null && <div className="notice ok">Pass {passId.toString()} is yours. You can see it on the Passes page.</div>}
+            </div>
+          </li>
+
+          <li className={cls(3)}>
+            <div className="n" aria-hidden>4</div>
+            <div>
+              <h3>Let the agent pay per call</h3>
+              <p>Each call is paid with a voucher signed in your browser: no wallet pop-up, no gas, a few milliseconds.</p>
+              <div className="actions" role="group" aria-label="Number of calls">
                 {[20, 50, 100].map((n) => (
-                  <button key={n} className={`btn small ${calls === n ? "primary" : ""}`} onClick={() => setCalls(n)}>{n} calls</button>
+                  <button key={n} className="btn small" aria-pressed={calls === n} onClick={() => setCalls(n)}>{n} calls</button>
                 ))}
-                <button className="btn primary" disabled={passId === null || busy !== null} onClick={run}>{busy === "run" ? "Paying…" : "Run"}</button>
+              </div>
+              <div className="actions">
+                <button className="btn solid" disabled={passId === null || busy !== null} onClick={run}>{busy === "run" ? "Paying…" : `Make ${calls} paid calls`}</button>
               </div>
               {progress.total > 0 && (
                 <>
-                  <div className="progress"><div style={{ width: `${(progress.done / progress.total) * 100}%` }} /></div>
-                  <div className="muted mono" style={{ fontSize: 12.5, marginTop: 8 }}>
-                    {progress.done}/{progress.total} paid · Σ {formatTusd8(progress.cumulative, 3)} tUSD8 · {progress.done ? (progress.ms / progress.done).toFixed(0) : 0} ms per call · 0 transactions
+                  <div className="progress" role="progressbar" aria-valuemin={0} aria-valuemax={progress.total} aria-valuenow={progress.done} aria-label="Paid calls">
+                    <div style={{ width: `${(progress.done / progress.total) * 100}%` }} />
                   </div>
+                  <p style={{ fontSize: 15 }}>
+                    {progress.done} of {progress.total} paid, {formatTusd8(progress.cumulative, 3)} tUSD8 in total,{" "}
+                    {progress.done ? (progress.ms / progress.done).toFixed(0) : 0} ms per call, no transactions.
+                  </p>
                 </>
               )}
             </div>
-          </div>
+          </li>
 
-          <div className="glass pstep">
-            <div className="badge">5</div>
+          <li className="step">
+            <div className="n" aria-hidden>5</div>
             <div>
               <h3>Test the guard rails</h3>
-              <p>An over-priced quote is refused before anything is signed. Revoking from your wallet stops the very next request. Settlement turns all those vouchers into one transaction.</p>
+              <p>An over-priced quote is refused before anything is signed. Revoking from your wallet stops the next request. Settling turns all the vouchers into one transaction.</p>
               <div className="actions">
-                <button className="btn small" disabled={passId === null || busy !== null} onClick={injection}>Try a 5 tUSD8 quote</button>
-                <button className="btn danger small" disabled={passId === null || busy !== null} onClick={revoke}>{busy === "revoke" ? "Revoking…" : "Revoke agent (tx)"}</button>
-                <button className="btn small" disabled={busy !== null} onClick={settle}>{busy === "settle" ? "Settling…" : "Merchant: settle now"}</button>
+                <button className="btn small" disabled={passId === null || busy !== null} onClick={injection}>Ask for a 5 tUSD8 call</button>
+                <button className="btn danger small" disabled={passId === null || busy !== null} onClick={revoke}>{busy === "revoke" ? "Revoking…" : "Revoke the agent"}</button>
+                <button className="btn small" disabled={busy !== null} onClick={settle}>{busy === "settle" ? "Settling…" : "Settle now"}</button>
               </div>
             </div>
-          </div>
-        </div>
+          </li>
+        </ol>
 
-        <div className="glass stream" style={{ maxHeight: 760, position: "sticky", top: 84 }}>
-          <div style={{ padding: "18px 20px 6px" }}>
-            <div className="card-title">What happened</div>
+        <div className="panel log">
+          <div className="panel-head">
+            <h3>What happened</h3>
           </div>
-          <div className="stream-list">
-            {log.length === 0 && <div className="empty">Your steps and their results show up here.</div>}
+          <div className="rows" role="log" aria-live="polite">
+            {log.length === 0 && <p className="empty">Your steps and their results appear here.</p>}
             {log.map((l, i) => (
-              <div key={`${l.at}-${i}`} className="row" style={{ gridTemplateColumns: "64px 1fr" }}>
+              <div key={`${l.at}-${i}`} className="r" style={{ gridTemplateColumns: "64px minmax(0,1fr)" }}>
                 <span className="t">{new Date(l.at).toLocaleTimeString([], { minute: "2-digit", second: "2-digit" })}</span>
-                <span style={{ color: l.kind === "bad" ? "var(--rose)" : l.kind === "ok" ? "var(--ink)" : "var(--ink-2)", lineHeight: 1.45 }}>
+                <span style={{ color: l.kind === "bad" ? "var(--red-ink)" : l.kind === "ok" ? "var(--ink)" : "var(--ink-2)" }}>
                   {l.text}{" "}
                   {l.hash && (
-                    <a className="grad-text mono" href={explorerTx(l.hash)} target="_blank" rel="noreferrer">
+                    <a href={explorerTx(l.hash)} target="_blank" rel="noreferrer">
                       {short(l.hash)}
                     </a>
                   )}

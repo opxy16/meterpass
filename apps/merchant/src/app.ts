@@ -80,6 +80,7 @@ export function createMerchantApp(deps: MerchantAppDeps) {
 
   app.get("/events", (c) =>
     streamSSE(c, async (stream) => {
+      await stream.writeSSE({ event: "hello", data: String(Date.now()) }); // opens the stream at once
       for (const e of deps.hub.history(50)) await stream.writeSSE({ event: e.type, data: JSON.stringify(e) });
       let open = true;
       const off = deps.hub.subscribe((e) => {

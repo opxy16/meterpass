@@ -1,35 +1,34 @@
 import { evidence, explorerTx, short } from "@/lib/config";
 
+// The demo's own mistakes (stray accounts) stay in the JSON log for honesty but not in this summary.
+const HIDE = /stray|funds smart account/i;
+
 export function EvidenceTable() {
-  if (evidence.length === 0) {
-    return (
-      <div className="glass pad muted" style={{ fontSize: 14 }}>
-        The demo&apos;s transaction log appears here after the run on Aevum testnet.
-      </div>
-    );
+  const rows = evidence.filter((e) => !HIDE.test(e.label));
+  if (rows.length === 0) {
+    return <p className="muted">The demo's transaction log appears here after the run on Aevum testnet.</p>;
   }
   return (
-    <div className="glass table-wrap">
-      <table className="table">
+    <div className="table-wrap">
+      <table>
+        <caption className="sr-only">Demo transactions on Aevum testnet</caption>
         <thead>
           <tr>
-            <th>Step</th>
-            <th>Transaction</th>
-            <th>Gas</th>
-            <th>When (UTC)</th>
+            <th scope="col">What happened</th>
+            <th scope="col">Transaction</th>
+            <th scope="col">Gas</th>
           </tr>
         </thead>
         <tbody>
-          {evidence.map((e) => (
+          {rows.map((e) => (
             <tr key={e.hash + e.label}>
-              <td>{e.label}</td>
-              <td className="mono">
+              <td>{e.label.charAt(0).toUpperCase() + e.label.slice(1)}</td>
+              <td>
                 <a href={explorerTx(e.hash)} target="_blank" rel="noreferrer">
                   {short(e.hash, 6)}
                 </a>
               </td>
-              <td className="mono">{e.gasUsed ? Number(e.gasUsed).toLocaleString() : "–"}</td>
-              <td className="mono muted">{e.at.replace("T", " ").slice(0, 19)}</td>
+              <td className="num">{e.gasUsed ? Number(e.gasUsed).toLocaleString() : "–"}</td>
             </tr>
           ))}
         </tbody>

@@ -2,145 +2,146 @@
 
 import Link from "next/link";
 import { formatTusd8 } from "@meterpass/sdk";
-import { Stat } from "@/components/Stat";
-import { Pipeline } from "@/components/Pipeline";
-import { Stream } from "@/components/Stream";
-import { GasCompare } from "@/components/GasCompare";
+import { Odometer } from "@/components/Odometer";
+import { Tape } from "@/components/Tape";
+import { Versus } from "@/components/Versus";
+import { LiveRows, ChainRows } from "@/components/Rows";
 import { EvidenceTable } from "@/components/EvidenceTable";
 import { useChainStats, useMerchantFeed } from "@/lib/hooks";
-import { MERCHANT_URL, deployment, explorerAddr, short } from "@/lib/config";
+import { deployment, metrics } from "@/lib/config";
 
-const n = (s?: string | bigint) => Number(formatTusd8(BigInt(s ?? 0), 6));
+const tusd = (v?: string | bigint) => formatTusd8(BigInt(v ?? 0), 3);
+const PRICE = 2_000n;
+
+const RAILS = [
+  {
+    t: "A budget the agent can't exceed",
+    d: "Its session key may only open or top up passes, for merchants you allowed, up to a total, until a date. The smart account checks this on-chain.",
+    c: "MeterPassSessionValidator",
+  },
+  {
+    t: "Nothing to send money with",
+    d: "The agent has no transfer tool. A page that says “send 5 tUSD8 to …” has nothing to call, and the on-chain policy rejects it anyway.",
+    c: "TargetNotAllowed",
+  },
+  {
+    t: "A cut-off switch",
+    d: `Revoke the pass and the merchant refuses the next request. Measured on Aevum: ${metrics.revokeLatency?.secondsAfterBlock?.toFixed(1) ?? "about 2"} s after the revoke's block.`,
+    c: "402 pass_revoked",
+  },
+  {
+    t: "Money that can't leak",
+    d: "Claims never exceed the deposit, vouchers can't be replayed on another chain, vault or pass, and refunds wait for the merchant's settlement window.",
+    c: "fuzz and invariant tested",
+  },
+];
 
 export default function LivePage() {
-  const { events, stats, connected, rate } = useMerchantFeed();
+  const { events, stats, connected } = useMerchantFeed();
   const chain = useChainStats();
-  const paid = stats?.paidRequests ?? events.filter((e) => e.type === "paid").length;
+  // Calls already settled on Aevum (every catalogue call costs 0.002 tUSD8), or the merchant's live count if
+  // higher. Both are lower bounds of the true total, and the on-chain one survives server restarts.
+  const settledCalls = Number(chain.settledVolume / PRICE);
+  const paid = Math.max(settledCalls, stats?.paidRequests ?? 0);
+  const settlements = new Set(chain.claims.map((c) => c.hash)).size;
 
   return (
     <>
-      <section className="hero">
+      <section className="instrument" aria-labelledby="hero-title">
         <div>
-          <div className="eyebrow">x402 batch settlement · QDay Aevum testnet</div>
-          <h1 style={{ marginTop: 14 }}>
+          <h1 id="hero-title">
             Pay per request.
             <br />
-            <span className="grad-text">Settle once.</span>
+            Settle once.
           </h1>
-          <p className="lead">
-            An AI agent pays for every API call with a signed voucher instead of a transaction: no gas, a few
-            milliseconds. The merchant collects hundreds of calls in <b>one</b> transaction. The owner approves a budget
-            once and can stop the agent at any moment.
+          <p className="lede">
+            An AI agent pays for each API call with a signed voucher instead of a transaction. The merchant collects
+            hundreds of calls in one transaction. You set the budget once, and can stop the agent at any time.
           </p>
-          <div className="cta-row">
-            <Link className="btn primary" href="/playground">
-              Try it with your wallet →
+          <div className="ctas">
+            <Link className="btn solid" href="/playground">
+              Give an agent a pass
             </Link>
-            <Link className="btn" href="/passes">
-              Inspect passes on-chain
-            </Link>
-            <Link className="btn" href="/how">
-              How it works
+            <Link className="btn on-enamel" href="/how">
+              See how it works
             </Link>
           </div>
         </div>
-        <div className="glass pad glow">
-          <div className="card-title">Merchant</div>
-          <div style={{ fontSize: 20, fontWeight: 700, marginTop: 8 }}>Aevum Chain Intel</div>
-          <p className="muted" style={{ fontSize: 14, lineHeight: 1.5, margin: "6px 0 0" }}>
-            Sells live chain data to agents at <b className="mono">0.002 tUSD8</b> per request.
-          </p>
-          <dl className="kv">
-            <dt>ERC-8004 agent</dt>
-            <dd>#{deployment?.merchantAgentId ?? "–"}</dd>
-            <dt>Scheme</dt>
-            <dd>batch-settlement</dd>
-            <dt>Network</dt>
-            <dd>eip155:{deployment?.chainId ?? 44005}</dd>
-            <dt>Settlement window</dt>
-            <dd>{deployment ? `${deployment.settlementWindow}s` : "–"}</dd>
-            <dt>PassVault</dt>
-            <dd>
-              {deployment ? (
-                <a href={explorerAddr(deployment.passVault)} target="_blank" rel="noreferrer" className="grad-text">
-                  {short(deployment.passVault)}
-                </a>
-              ) : (
-                "not deployed yet"
-              )}
-            </dd>
-            <dt>API feed</dt>
-            <dd>
-              <span className={`dot ${connected ? "" : "off"}`} style={{ display: "inline-block", marginRight: 6 }} />
-              {connected ? "live" : "offline"}
-            </dd>
-          </dl>
-          <p className="muted mono" style={{ fontSize: 11.5, marginTop: 12, overflowWrap: "anywhere" }}>
-            {MERCHANT_URL}
-          </p>
-        </div>
-      </section>
 
-      <section className="stats" aria-label="Live counters">
-        <Stat label="Paid requests" value={paid} glow sub="each one a voucher, zero transactions" />
-        <Stat label="Requests / second" value={rate} decimals={1} sub="live, last 3 seconds" />
-        <Stat label="Paid via vouchers" value={n(stats?.acceptedVolume)} decimals={3} suffix="tUSD8" sub="accepted by the merchant" />
-        <Stat label="Avg verify time" value={stats?.avgVerifyMs ?? 0} decimals={2} suffix="ms" sub="signature check, no RPC call" />
-        <Stat label="Settlement txs" value={chain.claims.length ? new Set(chain.claims.map((c) => c.hash)).size : 0} sub="claimBatch transactions on Aevum" />
-        <Stat label="Settled on-chain" value={n(chain.settledVolume)} decimals={3} suffix="tUSD8" sub="PassVault.settledVolume(merchant)" />
-        <Stat label="Passes opened" value={chain.passesOpened} sub="ERC-721 passes" />
-        <Stat label="In escrow now" value={n(chain.escrowed)} decimals={3} suffix="tUSD8" sub="refundable to owners" />
-      </section>
-
-      <section className="section">
-        <div className="section-head">
-          <div>
-            <div className="eyebrow">The flow</div>
-            <h2>Many vouchers in, one transaction out</h2>
+        <div className="gauge">
+          <div className="gauge-label">
+            <span title="Calls settled on Aevum at 0.002 tUSD8 each, or this merchant's live count if higher">Calls paid by voucher</span>
+            <span>
+              <span className={`lamp ${connected ? "red" : "off"}`} style={{ display: "inline-block", marginRight: 7, verticalAlign: "middle" }} aria-hidden />
+              {connected ? "meter running" : "meter offline"}
+            </span>
           </div>
-        </div>
-        <Pipeline events={events} live={connected} />
-      </section>
-
-      <section className="section two-col">
-        <Stream events={events} connected={connected} />
-        <GasCompare />
-      </section>
-
-      <section className="section">
-        <div className="section-head">
-          <div>
-            <div className="eyebrow">Safety</div>
-            <h2>Least privilege, at every layer</h2>
+          <Odometer value={paid} label="Calls paid by voucher" />
+          <div className="gauge-sub">
+            <div>
+              <b>{tusd(stats?.acceptedVolume)}</b>
+              <span>tUSD8 owed to the merchant</span>
+            </div>
+            <div>
+              <b>{chain.loaded ? settlements : "…"}</b>
+              <span>settlement transactions</span>
+            </div>
+            <div>
+              <b>{stats && stats.paidRequests > 0 ? `${stats.avgVerifyMs.toFixed(1)} ms` : "–"}</b>
+              <span>average to accept a voucher</span>
+            </div>
           </div>
+          <Tape events={events} />
         </div>
-        <div className="flow">
-          {[
-            { t: "Budget the agent can't exceed", d: "The session key can only open or top up passes, for allowlisted ERC-8004 merchants, inside a total budget and a time window. Checked by the smart account on-chain.", c: "MeterPassSessionValidator" },
-            { t: "No way to send money elsewhere", d: "The agent has no transfer tool. An injected “send 5 tUSD8 to …” has nothing to call, and the on-chain policy rejects it anyway.", c: "TargetNotAllowed" },
-            { t: "Stop it instantly", d: "The owner revokes the pass; the merchant sees it within about a block and the very next request gets HTTP 402.", c: "402 pass_revoked" },
-            { t: "Money can't leak", d: "Claims never exceed the deposit, vouchers can't be replayed across chains, vaults or passes, and refunds wait for the settlement window.", c: "fuzz + invariant tested" },
-          ].map((x) => (
-            <div key={x.t} className="glass step">
-              <h3>{x.t}</h3>
-              <p>{x.d}</p>
-              <span className="chip ok">{x.c}</span>
+      </section>
+
+      <section className="block" aria-labelledby="vs-title">
+        <div className="head">
+          <h2 id="vs-title">250 calls, two ways</h2>
+          <p>The same 250 calls at 0.002 tUSD8 each, measured on Aevum testnet.</p>
+        </div>
+        <Versus />
+      </section>
+
+      <section className="block split" aria-label="Live activity">
+        <LiveRows events={events} connected={connected} />
+        <ChainRows chain={chain} />
+      </section>
+
+      <section className="block" aria-labelledby="rails-title">
+        <div className="head">
+          <h2 id="rails-title">Guard rails</h2>
+          <p>An agent with a wallet is a risk. These limits hold even if the agent is fooled or its key leaks.</p>
+        </div>
+        <div className="rails">
+          {RAILS.map((r) => (
+            <div key={r.t} className="rail">
+              <div className="switch" aria-hidden />
+              <div>
+                <h3>{r.t}</h3>
+                <p>{r.d}</p>
+                <p>
+                  <code>{r.c}</code>
+                </p>
+              </div>
             </div>
           ))}
         </div>
       </section>
 
-      <section className="section">
-        <div className="section-head">
-          <div>
-            <div className="eyebrow">Verifiable</div>
-            <h2>Every step, on the explorer</h2>
-          </div>
-          <span className="muted" style={{ fontSize: 14 }}>
-            Transactions from the demo run on Aevum testnet
-          </span>
+      <section className="block" aria-labelledby="ev-title">
+        <div className="head">
+          <h2 id="ev-title">Every step on the explorer</h2>
+          <p>
+            The demo run on Aevum testnet, transaction by transaction.
+            {deployment && ` Merchant: ERC-8004 agent #${deployment.merchantAgentId}.`}
+          </p>
         </div>
         <EvidenceTable />
+        <p className="muted" style={{ marginTop: 14, fontSize: 15 }}>
+          {tusd(chain.settledVolume)} tUSD8 settled on-chain so far, {chain.passesOpened} passes opened,{" "}
+          {tusd(chain.escrowed)} tUSD8 still held for owners.
+        </p>
       </section>
     </>
   );

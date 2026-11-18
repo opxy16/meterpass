@@ -24,11 +24,11 @@ interface PassView {
 const ZERO = "0x0000000000000000000000000000000000000000";
 
 function status(p: PassView, now: number) {
-  if (p.closed) return { label: "Closed · refunded", cls: "" };
-  if (p.authorizer === ZERO) return { label: "Paused · agent revoked", cls: "bad" };
-  if (p.closeRequestedAt) return { label: "Closing", cls: "warn" };
-  if (now > p.expiry) return { label: "Expired · settling", cls: "warn" };
-  return { label: "Active", cls: "ok" };
+  if (p.closed) return { label: "Closed and refunded", lamp: "off" };
+  if (p.authorizer === ZERO) return { label: "Paused: agent revoked", lamp: "red" };
+  if (p.closeRequestedAt) return { label: "Closing", lamp: "off" };
+  if (now > p.expiry) return { label: "Expired, settling", lamp: "off" };
+  return { label: "Active", lamp: "" };
 }
 
 async function loadPass(id: bigint): Promise<PassView | null> {
@@ -123,81 +123,84 @@ export default function PassesPage() {
     }
   }
 
-  if (!deployment) return <div className="glass pad section">PassVault is not deployed on this network yet.</div>;
+  if (!deployment) return <p className="block muted">PassVault is not deployed on this network yet.</p>;
   const shown = mineOnly && address ? passes.filter((p) => p.owner.toLowerCase() === address.toLowerCase()) : passes;
 
   return (
     <>
-      <section className="section">
-        <div className="section-head">
-          <div>
-            <div className="eyebrow">ERC-721 · on-chain art · live state</div>
-            <h2>Passes</h2>
-            <p className="lead" style={{ marginTop: 8 }}>
-              Each pass is an NFT that holds prepaid tUSD8 for one merchant. Its owner can pause the agent, hand the pass
-              to another agent, or take back unused credit.
-            </p>
-          </div>
-          <div className="actions" style={{ marginTop: 0 }}>
-            {address ? (
-              <>
-                <span className="chip ok" style={{ marginTop: 0 }}>{short(address)}</span>
-                <button className="btn small" onClick={() => setMineOnly((v) => !v)}>
-                  {mineOnly ? "Show all" : "Only mine"}
-                </button>
-              </>
-            ) : (
-              <button className="btn primary small" onClick={connect}>
-                Connect wallet to manage yours
-              </button>
-            )}
-          </div>
+      <section className="block" style={{ marginTop: 48 }}>
+        <div className="head">
+          <h2>Passes</h2>
+          <p>
+            A pass is an NFT that holds prepaid tUSD8 for one merchant. Its owner can pause the agent, hand the pass to
+            another agent, or take back unused credit. The card art is drawn on-chain from the pass's live state.
+          </p>
         </div>
-        {error && <div className="note err">{error}</div>}
+        <div className="actions" style={{ marginTop: 0 }}>
+          {address ? (
+            <>
+              <span className="state">
+                <span className="lamp" aria-hidden />
+                Connected as {short(address)}
+              </span>
+              <button className="btn small" aria-pressed={mineOnly} onClick={() => setMineOnly((v) => !v)}>
+                Only my passes
+              </button>
+            </>
+          ) : (
+            <button className="btn solid small" onClick={connect}>
+              Connect wallet to manage your passes
+            </button>
+          )}
+        </div>
+        {error && <div className="notice err" role="alert">{error}</div>}
         {msg && (
-          <div className={`note ${msg.ok ? "ok" : "err"}`}>
+          <div className={`notice ${msg.ok ? "ok" : "err"}`} role="status">
             {msg.text}{" "}
             {msg.hash && (
-              <a className="grad-text" href={explorerTx(msg.hash)} target="_blank" rel="noreferrer">
-                view transaction
+              <a href={explorerTx(msg.hash)} target="_blank" rel="noreferrer">
+                View the transaction
               </a>
             )}
           </div>
         )}
       </section>
 
-      {loading && <div className="glass pad muted">Reading passes from Aevum…</div>}
-      {!loading && shown.length === 0 && <div className="glass pad muted">No passes yet.</div>}
+      {loading && <p className="muted" style={{ marginTop: 24 }}>Reading passes from Aevum…</p>}
+      {!loading && shown.length === 0 && <p className="muted" style={{ marginTop: 24 }}>No passes yet. Open one in the playground.</p>}
 
-      <section className="pass-grid" style={{ marginTop: 18 }}>
+      <section className="pass-grid" style={{ marginTop: 24 }} aria-label="Passes">
         {shown.map((p) => {
           const s = status(p, now);
           const mine = address && p.owner.toLowerCase() === address.toLowerCase();
           const refundIn = p.refundableAt - now;
           const used = p.deposit === 0n ? 0 : Number((p.claimed * 1000n) / p.deposit) / 10;
           return (
-            <article key={p.id.toString()} className="glass pad">
-              {p.image ? <img className="pass-art" src={p.image} alt={`MeterPass #${p.id} card`} /> : <div className="pass-art" />}
-              <div className="actions" style={{ justifyContent: "space-between", alignItems: "center" }}>
-                <strong>Pass #{p.id.toString()}</strong>
-                <span className={`chip ${s.cls}`} style={{ marginTop: 0 }}>{s.label}</span>
+            <article key={p.id.toString()} className="pass" aria-labelledby={`pass-${p.id}`}>
+              {p.image ? <img src={p.image} alt={`On-chain card for pass ${p.id}`} /> : <div className="art" />}
+              <div className="pass-top">
+                <strong id={`pass-${p.id}`}>Pass {p.id.toString()}</strong>
+                <span className="state">
+                  <span className={`lamp ${s.lamp}`} aria-hidden />
+                  {s.label}
+                </span>
               </div>
-              <div className="progress" title={`${used}% settled`}>
+              <div className="meter-bar" role="meter" aria-label="Share of the deposit settled" aria-valuemin={0} aria-valuemax={100} aria-valuenow={used}>
                 <div style={{ width: `${used}%` }} />
               </div>
               <dl className="kv">
                 <dt>Deposit</dt>
                 <dd>{formatTusd8(p.deposit, 3)} tUSD8</dd>
-                <dt>Settled to merchant</dt>
+                <dt>Paid to merchant</dt>
                 <dd>{formatTusd8(p.claimed, 3)} tUSD8</dd>
                 <dt>Merchant</dt>
-                <dd>agent #{p.merchantAgentId.toString()}</dd>
+                <dd>ERC-8004 agent #{p.merchantAgentId.toString()}</dd>
                 <dt>Agent key</dt>
-                <dd>{p.authorizer === ZERO ? (p.closed ? "none" : "none (revoked)") : <a href={explorerAddr(p.authorizer)} target="_blank" rel="noreferrer">{short(p.authorizer)}</a>}</dd>
+                <dd>{p.authorizer === ZERO ? (p.closed ? "none" : "none, revoked") : <a href={explorerAddr(p.authorizer)} target="_blank" rel="noreferrer">{short(p.authorizer)}</a>}</dd>
                 <dt>Owner</dt>
                 <dd><a href={explorerAddr(p.owner)} target="_blank" rel="noreferrer">{short(p.owner)}</a></dd>
                 <dt>Expires</dt>
-                <dd>{new Date(p.expiry * 1000).toLocaleString()}</dd>
+                <dd>{new Date(p.expiry * 1000).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}</dd>
                 {!p.closed && (
                   <>
                     <dt>Refund opens</dt>
@@ -218,19 +221,21 @@ export default function PassesPage() {
                         Close early
                       </button>
                     )}
-                    <button className="btn small" disabled={!!busy || refundIn > 0} onClick={() => act(p, "refund")} title={refundIn > 0 ? "Waits for the settlement window" : ""}>
-                      Refund unused
+                    <button className="btn small" disabled={!!busy || refundIn > 0} onClick={() => act(p, "refund")} title={refundIn > 0 ? "Opens after the merchant's settlement window" : undefined}>
+                      Refund unused credit
                     </button>
                   </div>
                   <div className="actions">
+                    <label className="sr-only" htmlFor={`to-${p.id}`}>New agent address for pass {p.id.toString()}</label>
                     <input
-                      className="input"
-                      placeholder="New agent address 0x…"
+                      id={`to-${p.id}`}
+                      className="field"
+                      placeholder="New agent address, 0x…"
                       value={reassignTo[p.id.toString()] ?? ""}
                       onChange={(e) => setReassignTo((m) => ({ ...m, [p.id.toString()]: e.target.value }))}
                     />
                     <button className="btn small" disabled={!!busy} onClick={() => act(p, "setAuthorizer")}>
-                      Hand to this agent
+                      Hand the pass over
                     </button>
                   </div>
                 </>
